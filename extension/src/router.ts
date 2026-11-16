@@ -17,6 +17,8 @@ import {
   describeChain,
   servedNetwork,
   sidechainServer,
+  serverUrl,
+  sidepotClient,
   SidechainServerError,
   SUPPORTED_SLOTS,
   createVault,
@@ -451,7 +453,8 @@ export function createRouter<Sender>(host: RouterHost<Sender>) {
     chains: chainsOn,
     receiveAddresses: (slot) => accounts.receiveAddresses(slot),
     send: (slot, order, from) => announcing([slot], sends.send(slot, order, from, approvalHost)),
-    sendAction: (slot, action, from) => announcing([slot], sends.trade(slot, action, from, approvalHost)),
+    // A Sidepot entry is a main-chain transaction made for its Slot: both read again.
+    sendAction: async (slot, action, from) => announcing([...new Set([await sends.actionChain(slot), slot])], sends.action(slot, action, from, approvalHost)),
     askToNameAsset: (prompt) => askToNameAsset(prompt, approvalHost),
     pending: pendingPerOrigin,
     async assetSuggestion(slot, origin, suggestion) {
@@ -533,6 +536,7 @@ export function createRouter<Sender>(host: RouterHost<Sender>) {
     openSigningApproval,
     isUnlocked: signing.isUnlocked,
     esplora,
+    sidepot: (_entry, network) => sidepotClient(serverUrl(network)),
     store: depositStore,
     held: heldStore,
     queue: spendQueue,
@@ -806,6 +810,8 @@ export function createRouter<Sender>(host: RouterHost<Sender>) {
     route,
     toErrorResponse,
     checkAutoLock: () => vault.checkAutoLock(),
+    /** The chain whose coins an app's `sendAction` on `slot` spends (`Sends.actionChain`): what a host serializes it with. */
+    actionChain: (slot: number) => sends.actionChain(slot),
     activity: () => vault.touch(),
     connectApprovalHost(name: string, port: ApprovalHost) {
       approvalHosts.set(name, port);

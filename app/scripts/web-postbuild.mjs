@@ -14,7 +14,8 @@ const origins = sidechainServerOrigins(chains);
 // Svelte writes style attributes; checked asset logos are data: images. Neither needs script access.
 const csp = [
   "default-src 'self'", "script-src 'self' 'wasm-unsafe-eval'", "worker-src 'self'",
-  `connect-src 'self' ${origins.join(" ")}`, "style-src 'self' 'unsafe-inline'",
+  // 'self' also covers a server its Chain Entry puts at a path on the wallet's own origin (docs/adr/0021).
+  ["connect-src 'self'", ...origins].join(" "), "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:", "object-src 'none'", "frame-ancestors 'none'", "base-uri 'none'",
   // The Apps view (#91) frames apps that opt in, at any https origin or on this computer (as the
   // popup serves those too, so app developers can try the real wallet). The app's own

@@ -86,7 +86,9 @@ fn is_false(value: &bool) -> bool {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SidechainServerEntry {
     pub api: ServerApi,
-    /// Base URL; the extension build grants itself access to its origin and nothing else.
+    /// Base URL; the extension build grants itself access to its origin and nothing else. A web
+    /// build may name a path on its own origin instead (`/esplora`), which the wallet resolves
+    /// against the page's origin when it runs (docs/adr/0021).
     pub url: String,
 }
 
@@ -103,6 +105,10 @@ pub enum ServerApi {
     /// which says how final a block is (docs/adr/0012).
     #[serde(rename = "flush")]
     Flush,
+    /// Sidepot's JSON API: `/state` and `/account/<player>` (docs/adr/0021). It reports a game
+    /// account's balance; the game's moves are L1 transactions, sent over eCash's own server.
+    #[serde(rename = "sidepot")]
+    Sidepot,
 }
 
 impl<P> ChainEntry<P> {

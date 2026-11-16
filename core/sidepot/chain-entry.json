@@ -1,0 +1,22 @@
+{
+  "name": "Sidepot",
+  "description": "A key game played from the main chain",
+  "networks": {
+    "regtest": {
+      "chain": "ecash:regtest-s88",
+      "slot": 88,
+      "parent": "ecash:regtest",
+      "identityBlock": { "height": 105, "hash": "528874dacc090b789007a4ff6016b9427c93f58d717f0e09962a98e126098ca8" },
+      "activation": { "height": 111, "hash": "76e03e614fb7b4c17916a2d42369c9c6df03db83522c998306a1b18de3295996" },
+      "depositConfirmations": 1,
+      "sidechainServer": { "api": "sidepot", "url": "/sidepot-api" },
+      "officialApps": [],
+      "assets": [
+        { "id": "", "ticker": "ECX", "name": "eCash in Sidepot", "decimals": 8, "ecx": true }
+      ],
+      "params": {
+        "anchor": { "height": 105, "hash": "528874dacc090b789007a4ff6016b9427c93f58d717f0e09962a98e126098ca8" }
+      }
+    }
+  }
+}

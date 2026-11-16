@@ -13,6 +13,12 @@
 //! explorer.blockfab.org, which agree; Bitcoin's and betanet's 973,728 differ, and its 973,727 is
 //! Bitcoin's (docs/adr/0019).
 //!
+//! regtest is Sidepot's test chain (docs/adr/0021), one private chain rather than a public network: its
+//! identity block is block 105, `528874da…6098ca8`, which mined Slot 88's proposal (a regtest chain's
+//! genesis is every regtest chain's). Addresses are Bitcoin Core's regtest ones (P2PKH 111, P2SH 196,
+//! `bcrt`), the replay marker 499999998 as mainnet's (its node accepts it, checked 2026-11-16), and
+//! its server a path on the web wallet's own origin, `/esplora`.
+//!
 //! `build.rs` picks the file: `chain-entry.json`, or `$ECX_L1_CHAIN_ENTRY` for the e2e build,
 //! whose Chain Entry differs only in its Sidechain Servers.
 use std::sync::OnceLock;

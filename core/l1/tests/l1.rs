@@ -47,7 +47,7 @@ fn declare_reports_the_ecash_betanet_binding() {
     assert_eq!(d.binding.chain, "ecash:betanet");
     assert_eq!(d.binding.format, "psbt");
     assert_eq!(d.binding.payload_versions, ["0"]);
-    assert_eq!(d.capabilities, ["buildDeposit", "buildTransfer"]);
+    assert_eq!(d.capabilities, ["buildDeposit", "buildTransfer", "buildData"]);
 }
 
 #[test]
@@ -89,4 +89,18 @@ fn mainnet_is_identified_by_its_fork_block_and_marks_spends_with_its_own_replay_
     assert_eq!(mainnet.params.op_drivechain, OpDrivechain::Nop8);
     let p = &mainnet.params.address_params;
     assert_eq!((p.p2pkh_prefix, p.p2sh_prefix, p.bech_hrp.as_str()), (0, 5, "bc"));
+}
+
+#[test]
+fn regtest_is_sidepots_test_chain_with_core_regtest_addresses_and_a_server_on_the_wallets_own_origin() {
+    let regtest = &chain_entry().networks["regtest"];
+    assert_eq!((regtest.chain.as_str(), regtest.slot, regtest.parent.as_deref()), ("ecash:regtest", None, None));
+    assert_eq!(regtest.identity_block.height, 105);
+    assert_eq!(regtest.identity_block.hash, "528874dacc090b789007a4ff6016b9427c93f58d717f0e09962a98e126098ca8");
+    assert_eq!(regtest.sidechain_server.api, ServerApi::Esplora);
+    assert_eq!(regtest.sidechain_server.url, "/esplora", "a path, resolved against the page's origin (docs/adr/0021)");
+    assert_eq!(regtest.params.replay_lock_time, 499_999_998);
+    assert_eq!(regtest.params.op_drivechain, OpDrivechain::Nop8);
+    let p = &regtest.params.address_params;
+    assert_eq!((p.p2pkh_prefix, p.p2sh_prefix, p.bech_hrp.as_str()), (111, 196, "bcrt"));
 }
