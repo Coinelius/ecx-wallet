@@ -196,8 +196,11 @@ export interface DepositCredit {
   yours: boolean;
   /** L1 confirmations before the Slot may credit it. */
   confirmations: number;
-  /** Who pays it: someone running the Slot's node imports it (Elements), or the Slot itself in a block of its own (Flush). */
-  paidBy: "operator" | "chain";
+  /**
+   * Who pays it: someone running the Slot's node imports it (Elements), the Slot itself in a block
+   * of its own (Flush), or its game as it reads the Deposit's main-chain block (Sidepot).
+   */
+  paidBy: "operator" | "chain" | "game";
 }
 
 /** A risky mode of a request, shown above everything else. */

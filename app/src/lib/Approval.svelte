@@ -153,9 +153,14 @@
           "the main chain refuses this one, or drops it once the other confirms, and its coins come back."
         );
       }
+      // Flush and Sidepot credit a Deposit themselves (`paidBy`); elsewhere someone running the Slot's node imports it.
+      const credited =
+        d?.credit !== undefined && d.credit.paidBy !== "operator"
+          ? `${d.credit.chainName} credits it itself, once it has read the Deposit's block.`
+          : "Crediting it on the sidechain isn't automatic: it waits for the chain's operator to import it.";
       return (
         `This is a Deposit to ${slot}: the funds leave the main chain, and only come back through a Withdrawal, a BIP300 miner vote ` +
-        "of about 3 to 6 months. Crediting it on the sidechain isn't automatic: it waits for the chain's operator to import it."
+        `of about 3 to 6 months. ${credited}`
       );
     }
     if (mode.kind === "nonDefaultSighash") {
@@ -519,8 +524,12 @@
               <div class="small" data-deposit>
                 Deposit {coin(d.deposit)} to Slot {d.slot}{d.credit ? ` (${d.credit.chainName})` : ""}.
                 {#if d.credit}
-                  {coin(d.deposit)} credited to <code data-destination>{d.credit.address}</code> after {d.credit.confirmations} blocks,
-                  {d.credit.paidBy === "chain" ? `in a block of ${d.credit.chainName}'s own.` : "once the operator imports it."}
+                  {coin(d.deposit)} credited to <code data-destination>{d.credit.address}</code> after {d.credit.confirmations} {d.credit.confirmations === 1 ? "block" : "blocks"},
+                  {d.credit.paidBy === "chain"
+                    ? `in a block of ${d.credit.chainName}'s own.`
+                    : d.credit.paidBy === "game"
+                      ? `as ${d.credit.chainName} reads the Deposit's block.`
+                      : "once the operator imports it."}
                 {:else}
                   Credited to <code data-destination>{d.text ?? d.data}</code>.
                 {/if}

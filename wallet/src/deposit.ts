@@ -167,12 +167,13 @@ export type DepositStatus = PendingDeposit &
     /**
      * `paidBy: "operator"`: someone running the Slot's node imports it with `claim` (Elements).
      * `"chain"`: the Slot pays it itself in a block of its own (Flush), and there is nothing to claim.
+     * `"game"`: the Slot's game credits it as it reads the Deposit's main-chain block (Sidepot).
      */
     | {
         state: "awaitingCredit";
         confirmations: number;
         depositConfirmations: number;
-        paidBy: "operator" | "chain";
+        paidBy: "operator" | "chain" | "game";
         claim?: DepositClaim;
         creditServer?: string;
       }
@@ -255,8 +256,11 @@ export function createDeposits(deps: DepositDeps) {
     return speaksEsplora(api) ? deps.esplora(target.entry, target.network) : undefined;
   }
 
-  /** Who pays a Deposit's credit: the Slot itself in a block of its own (Flush) or as its game reads eCash's (Sidepot), else whoever runs its node. */
-  const paidByOf = (target: { network: NetworkEntry }) => (["flush", "sidepot"].includes(target.network.sidechainServer.api) ? ("chain" as const) : ("operator" as const));
+  /** Who pays a Deposit's credit: the Slot itself in a block of its own (Flush), its game as it reads eCash's blocks (Sidepot), else whoever runs its node. */
+  const paidByOf = ({ network }: { network: NetworkEntry }): DepositCredit["paidBy"] => {
+    const { api } = network.sidechainServer;
+    return api === "flush" ? "chain" : api === "sidepot" ? "game" : "operator";
+  };
 
   /** A raw transaction, from the session's cache or else the server; kept only once it hashes to `txid`. */
   async function txHex(server: EsploraClient, module: L1Module, txid: string): Promise<string> {
@@ -588,7 +592,7 @@ export function createDeposits(deps: DepositDeps) {
             if (!status.confirmed) return { ...deposit, state: "confirming", confirmations: 0, depositConfirmations };
             const confirmations = (await (tip ??= l1.tipHeight())) - status.blockHeight! + 1;
             if (confirmations < depositConfirmations) return { ...deposit, state: "confirming", confirmations, depositConfirmations };
-            if (paidBy === "chain") {
+            if (paidBy === "game") {
               if (game === undefined || (await (gameHeight ??= game.state().then((s) => s.l1Height))) < status.blockHeight!) {
                 return { ...deposit, state: "awaitingCredit", confirmations, depositConfirmations, paidBy, ...(game === undefined ? {} : { creditServer: game.url }) };
               }

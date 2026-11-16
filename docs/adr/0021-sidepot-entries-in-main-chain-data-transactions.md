@@ -29,7 +29,7 @@ Slot 88's Chain Entry names `{ "api": "sidepot", "url": … }`: `GET /state` (`l
 
 That web wallet is served by a reverse proxy whose hostname the build doesn't know. So a Chain Entry's server `url` may be **a path on the wallet's own origin** (`/esplora`, `/sidepot-api`). `serverUrl` (`wallet/src/server-api.ts`) resolves it against the origin the wallet runs at; the CSP's `connect-src 'self'` already allows it, and the build adds no origin for it. An extension has no such origin: there the chain's server can't be reached, and says so.
 
-Checked on 2026-11-16 with the wallet's own code and the regtest build's modules against the regtest chain's servers, in node: a Deposit of 0.5 ECX to Slot 88 was credited to the game account, a `sidepot:buy` for 2 keys was taken by the game (balance 50,000,000 to 48,000,000 sats, nonce 0 to 1), and a `sidepot:cashout` of everything emptied the account. Not yet exercised in a browser.
+Checked on 2026-11-16 against the regtest chain's servers, by hand-run scripts that aren't part of the test suite. In node, with the wallet's own code and the regtest build's modules: a Deposit of 0.5 ECX to Slot 88 was credited to the game account, a `sidepot:buy` for 2 keys was taken by the game (balance 50,000,000 to 48,000,000 sats, nonce 0 to 1), and a `sidepot:cashout` of everything emptied the account. In headless Firefox 140, with the regtest web build behind a reverse proxy serving `/esplora` and `/sidepot-api` on its own origin: an app on another origin connected through the popup, got the account from `getAddresses`, the wallet's own Deposit was approved in place and credited, and a `sendAction` buy was approved and taken by the game.
 
 ## Considered options
 
