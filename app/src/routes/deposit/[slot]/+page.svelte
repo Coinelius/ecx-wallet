@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from "$app/state";
+  import ExplorerLink from "$lib/ExplorerLink.svelte";
   import { parseAmount } from "@ecx/wallet";
   import { heldForDeposit, hostApprovals, l1Cached, l1Reported, listChains, showReport, startDeposit, type ChainInfo, type ChainReport, type ShownReport } from "$lib/background";
   import Approval from "$lib/Approval.svelte";
@@ -121,7 +122,7 @@
 
   {#if done}
     <p class="success" role="status" data-deposit-done>
-      Deposit broadcast through {done.server}. Transaction <code data-deposit-txid>{done.txid}</code>. Its progress shows on
+      Deposit broadcast through {done.server}. Transaction <ExplorerLink chain={chains.find((c) => c.id === "l1")?.chain} tx={done.txid}><code data-deposit-txid>{done.txid}</code></ExplorerLink>. Its progress shows on
       the home page.
     </p>
   {/if}

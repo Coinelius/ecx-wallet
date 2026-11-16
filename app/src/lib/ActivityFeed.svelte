@@ -1,5 +1,7 @@
 <script lang="ts">
   import { activityDays, activityKind, localDay, NATIVE_COIN, type ActivityKind, type AssetAmount, type TradeEntry } from "@ecx/wallet";
+  import ExplorerLink from "$lib/ExplorerLink.svelte";
+  import { mainChainOf } from "$lib/explorer";
   import { assetSource, shortAsset } from "$lib/asset";
   import AssetBadge from "$lib/AssetBadge.svelte";
   import type { ChainId, HistoryEntry } from "$lib/background";
@@ -373,14 +375,14 @@
       <dd>{chain.info.name} <span class="mono muted tiny">{chain.info.chain}</span></dd>
       <dt>Transaction</dt>
       <dd class="txid">
-        <code title={entry.txid} data-details-txid>{entry.txid}</code>
+        <ExplorerLink chain={chain.info.chain} tx={entry.txid}><code title={entry.txid} data-details-txid>{entry.txid}</code></ExplorerLink>
         <button class="copy" aria-label="Copy transaction id" title="Copy transaction id" onclick={() => copy(entry.txid)}>
           <Icon name={copied ? "check" : "copy"} size={14} />
         </button>
       </dd>
       {#if entry.trade && "payout" in entry.trade.outcome && typeof entry.trade.outcome.payout === "object"}
         <dt>{entry.trade.outcome.state === "filled" ? "Paid by" : "Refunded by"}</dt>
-        <dd class="txid"><code title="{entry.trade.outcome.payout.txid}: the coinbase output that paid it, paired by its address and amount" data-details-payout>{entry.trade.outcome.payout.txid}</code></dd>
+        <dd class="txid"><ExplorerLink chain={chain.info.chain} tx={entry.trade.outcome.payout.txid}><code title="{entry.trade.outcome.payout.txid}: the coinbase output that paid it, paired by its address and amount" data-details-payout>{entry.trade.outcome.payout.txid}</code></ExplorerLink></dd>
       {/if}
       {#if entry.trade}
         <dt>{entry.trade.pools.length > 1 ? "Pools" : "Pool"}</dt>
@@ -391,12 +393,12 @@
         <dt>ECX back</dt>
         <dd data-details-returned>
           {amountText(returned.amount, NATIVE_COIN, chain.info.assets)} past the launch curve's end{returned.payout === "queued" ? ", queued" : ""}
-          {#if typeof returned.payout === "object"}<code class="txid">{returned.payout.txid}</code>{/if}
+          {#if typeof returned.payout === "object"}<ExplorerLink chain={chain.info.chain} tx={returned.payout.txid}><code class="txid">{returned.payout.txid}</code></ExplorerLink>{/if}
         </dd>
       {/if}
       {#if entry.depositFrom !== undefined}
         <dt>Deposit</dt>
-        <dd class="txid"><code title="{entry.depositFrom}: the Deposit's transaction on the main chain" data-details-deposit-from>{entry.depositFrom}</code></dd>
+        <dd class="txid"><ExplorerLink chain={mainChainOf(chain.info.chain)} tx={entry.depositFrom}><code title="{entry.depositFrom}: the Deposit's transaction on the main chain" data-details-deposit-from>{entry.depositFrom}</code></ExplorerLink></dd>
       {/if}
     </dl>
     {#if entry.trade?.outcome.state === "unknown"}

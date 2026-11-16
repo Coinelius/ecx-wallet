@@ -1,5 +1,6 @@
 <script lang="ts">
   import "../app.css";
+  import "../brand/blockfab.css";
   import { approvalRouteChanged, canFrameApps, serveOpener } from "$platform";
   import { PROVIDER_WINDOW } from "../../../client/src/web-wallet";
   import { reportActivity } from "$lib/activity";
@@ -9,6 +10,7 @@
   import { dock } from "$lib/dock.svelte";
   import { layout, WIDE_MIN_PX } from "$lib/layout.svelte";
   import BottomBar from "$lib/BottomBar.svelte";
+  import { brand } from "$lib/brand";
   import { page } from "$app/state";
   import { nav, pathOf } from "$lib/nav.svelte";
   import { currentView } from "$lib/view";
@@ -64,6 +66,10 @@
   // app.css sizes the page by where it shows.
   $effect(() => {
     document.documentElement.dataset.view = currentView();
+  });
+  // A host's own look, where the build picked one (brand.ts).
+  $effect(() => {
+    if (brand) document.documentElement.dataset.brand = brand;
   });
   // A desktop-sized window gets the wide layout (layout.svelte.ts) until an app is docked: beside
   // one, the wallet is the compact column again, as the extension shows it.

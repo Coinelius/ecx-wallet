@@ -1,6 +1,8 @@
 <script lang="ts">
   import { page } from "$app/state";
   import { canFrameApps } from "$platform";
+  import { brand } from "$lib/brand";
+  import Mark from "$lib/Mark.svelte";
   import Icon from "$lib/Icon.svelte";
   import { nav, pathOf, type Tab } from "$lib/nav.svelte";
 
@@ -18,6 +20,10 @@
 
 <!-- Docked to the bottom edge as each screen's header is to the top: it stays put while the page scrolls. -->
 <nav class="bottom-bar" aria-label="Wallet">
+  {#if brand === "blockfab"}
+    <!-- Shown only as the head of the wide rail (brand/blockfab.css). -->
+    <a class="rail-brand" href="#/" data-rail-brand><Mark size={28} /><span>ECX Wallet</span></a>
+  {/if}
   <div class="bar-items" role={onHome ? "tablist" : undefined}>
     <!-- Links, so any screen can open home on a panel (`?tab=`). -->
     <a
@@ -62,6 +68,12 @@
     <Icon name="settings" size={20} />
     <span>Settings</span>
   </a>
+  {#if brand === "blockfab"}
+    <a class="rail-credit" href="https://blockfab.org/" target="_blank" rel="noopener noreferrer" data-rail-credit>
+      <svg viewBox="0 0 32 32" width="20" height="20" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="1.5" fill="currentColor" /><rect x="18" y="2" width="12" height="12" rx="1.5" style="fill:var(--mark)" /><rect x="2" y="18" width="12" height="12" rx="1.5" style="fill:var(--mark)" /><rect x="18" y="18" width="12" height="12" rx="1.5" fill="currentColor" /></svg>
+      <span><small>Hosted by</small><b>BlockFab</b></span>
+    </a>
+  {/if}
 </nav>
 
 <style>
@@ -122,6 +134,44 @@
   .bar-icon {
     position: relative;
     display: flex;
+  }
+  /* A host's head and foot for the wide rail: hidden unless its brand shows them. */
+  .rail-brand,
+  .rail-credit {
+    display: none;
+    align-items: center;
+    gap: 11px;
+    color: var(--text);
+    text-decoration: none;
+  }
+  .rail-brand {
+    padding: 2px 10px 22px;
+    font-size: 1.25rem;
+    font-weight: 750;
+    letter-spacing: -0.06em;
+  }
+  .rail-credit {
+    margin-top: 10px;
+    padding: 14px 12px 4px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .rail-credit span {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+  }
+  .rail-credit small {
+    font-size: 0.68rem;
+  }
+  .rail-credit b {
+    color: var(--text);
+    font-size: 0.98rem;
+    font-weight: 750;
+    letter-spacing: -0.06em;
+  }
+  .rail-credit:hover b {
+    color: var(--mark);
   }
   /* Wide (layout.svelte.ts): the same bar as a rail down the left, Settings at its foot. */
   :global(html[data-layout="wide"]) .bottom-bar {

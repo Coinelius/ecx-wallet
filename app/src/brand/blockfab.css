@@ -1,0 +1,152 @@
+/* BlockFab's look (blockfab.org), for the web wallet it hosts: its near-black blue ground, plates
+   and hairlines, its teal mark for where you are and what's linked, Manrope, tight headings. One
+   dark look, as the site has. eCash Gold stays the wallet's accent: it's what you press to act.
+   Applies only where the build set `data-brand="blockfab"` (brand.ts); the font is bundled, so
+   nothing is loaded from another site. */
+@font-face {
+  font-family: "Manrope";
+  src: url("./manrope-latin.woff2") format("woff2");
+  font-weight: 400 800;
+  font-display: swap;
+}
+
+html[data-brand="blockfab"] {
+  color-scheme: dark;
+  --bg: #0c1118;
+  --surface: #131c27;
+  --surface-2: #1a2532;
+  --border: #2a3645;
+  --text: #edf3fa;
+  --muted: #b2bfce;
+  --mark: #88ddd9;
+  --on-mark: #102427;
+  --accent: #e8a84a;
+  --accent-hover: #f0b965;
+  --accent-text: #e8a84a;
+  --on-accent: #0a0a0c;
+  --ok: #8cddbc;
+  --ok-bg: #12302a;
+  --pending: #88ddd9;
+  --pending-bg: #11292e;
+  --danger: #ff7a80;
+  --danger-bg: #3a1417;
+  --danger-border: #6e2328;
+  --warn: #f59e5b;
+  --warn-bg: #351d0d;
+  --danger-solid: #d0303a;
+  --danger-solid-hover: #b8262f;
+  --on-danger: #ffffff;
+  --focus: #88ddd9;
+  --sidechain: #b5a7d5;
+  --on-sidechain: #0c1118;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 28px 70px -30px rgb(0 0 0 / 70%);
+  --highlight: inset 0 1px 0 rgb(255 255 255 / 4%);
+  --glow: color-mix(in srgb, var(--accent) 30%, transparent);
+  --halo: #33556640;
+  --grid: rgb(167 212 229 / 3.5%);
+  --glass: color-mix(in srgb, var(--surface) 72%, transparent);
+  --glass-strong: color-mix(in srgb, var(--surface) 88%, transparent);
+  --glass-border: #2a3645;
+  --glass-edge: rgb(156 222 230 / 12%);
+  --aurora-1: color-mix(in srgb, var(--mark) 10%, transparent);
+  --aurora-2: #33556630;
+  --aurora-3: color-mix(in srgb, var(--accent) 7%, transparent);
+  --font: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+html[data-brand="blockfab"] body {
+  font-size: 15.5px;
+  line-height: 1.6;
+}
+html[data-brand="blockfab"] ::selection {
+  background: var(--mark);
+  color: var(--on-mark);
+}
+html[data-brand="blockfab"] h1,
+html[data-brand="blockfab"] h2,
+html[data-brand="blockfab"] h3,
+html[data-brand="blockfab"] strong,
+html[data-brand="blockfab"] .title {
+  letter-spacing: -0.035em;
+}
+html[data-brand="blockfab"] a {
+  text-underline-offset: 4px;
+}
+
+/* The balance, as the site sets its headline: large, tight, light fading to steel. */
+html[data-brand="blockfab"] .big {
+  font-weight: 550;
+  letter-spacing: -0.06em;
+  background: linear-gradient(180deg, #f6fafe 30%, #9fb4c6) text;
+}
+
+/* Where you are is teal; what you press is still gold. */
+html[data-brand="blockfab"] .bar-item {
+  font-weight: 550;
+  letter-spacing: -0.01em;
+}
+html[data-brand="blockfab"] .bar-item[aria-selected="true"],
+html[data-brand="blockfab"] .bar-item[aria-current="page"] {
+  background: color-mix(in srgb, var(--mark) 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mark) 28%, transparent);
+  color: var(--mark);
+}
+html[data-brand="blockfab"] .bottom-bar,
+html[data-brand="blockfab"] .sticky-head {
+  background: #0c1118eb;
+}
+html[data-brand="blockfab"] .net-tag {
+  border-radius: 100px;
+  border-color: var(--border);
+  color: var(--muted);
+  padding: 1px 9px;
+}
+
+/* Section labels, as the site's eyebrows: teal, with its ring. */
+html[data-brand="blockfab"][data-layout="wide"] main[data-vault-state] .wide-only {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--mark);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+html[data-brand="blockfab"][data-layout="wide"] main[data-vault-state] .wide-only::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--mark);
+  border-radius: 50%;
+}
+html[data-brand="blockfab"][data-layout="wide"] main[data-vault-state="unlocked"] > .side {
+  background: #111a24;
+  border-color: var(--border);
+  border-radius: 16px;
+}
+html[data-brand="blockfab"][data-layout="wide"] .big {
+  font-size: 3.6rem;
+}
+html[data-brand="blockfab"][data-layout="wide"] .bottom-bar {
+  border-right-color: #ffffff0c;
+}
+
+/* The rail's head and foot (BottomBar): the wallet's name, and whose site this is. */
+html[data-brand="blockfab"][data-layout="wide"] .rail-brand,
+html[data-brand="blockfab"][data-layout="wide"] .rail-credit {
+  display: flex;
+}
+
+/* The rail carries the wallet's name, so home's header keeps only the network and the lock. */
+html[data-brand="blockfab"][data-layout="wide"] .wallet-head > :first-child {
+  display: none;
+}
+html[data-brand="blockfab"][data-layout="wide"] .wallet-head .title {
+  font-size: 0;
+}
+html[data-brand="blockfab"][data-layout="wide"] .wallet-head .net-tag {
+  margin-left: 0;
+  font-size: 0.66rem;
+}

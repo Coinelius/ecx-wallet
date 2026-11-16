@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from "$app/state";
+  import ExplorerLink from "$lib/ExplorerLink.svelte";
   import { parseAmount } from "@ecx/wallet";
   import { assetTrust, shortAsset } from "$lib/asset";
   import { hostApprovals, listChains, spendable, startSend, type AssetAmount, type ChainId, type ChainInfo, type SendResult } from "$lib/background";
@@ -142,7 +143,7 @@
       <strong>Sent</strong>
       {#if done.txid}
         <span class="txid">
-          Transaction <code data-send-txid={done.txid}>{shortTxid(done.txid)}</code>
+          Transaction <ExplorerLink chain={info?.chain} tx={done.txid}><code data-send-txid={done.txid}>{shortTxid(done.txid)}</code></ExplorerLink>
           <button type="button" class="copy" aria-label="Copy the transaction id" title="Copy" onclick={() => copyTxid(done!.txid!)} data-copy-txid>
             <Icon name={copied ? "check" : "copy"} size={16} />
           </button>

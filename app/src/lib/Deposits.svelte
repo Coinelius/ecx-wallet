@@ -1,5 +1,7 @@
 <script lang="ts">
   import { dismissDeposit, dismissRefusedDeposit, dismissRefusedSend } from "$lib/background";
+  import ExplorerLink from "$lib/ExplorerLink.svelte";
+  import { mainChainOf } from "$lib/explorer";
   import type { ChainId } from "$lib/background";
   import { depositState, type ChainView } from "$lib/chains.svelte";
   import Icon from "$lib/Icon.svelte";
@@ -12,6 +14,7 @@
    */
   let { spenders, ecx, onchange }: { spenders: ChainView[]; ecx: ChainView["info"]["assets"]; onchange: (chain: ChainId) => void } = $props();
 
+  const mainChain = $derived(spenders[0] && mainChainOf(spenders[0].info.chain));
   const list = $derived(spenders.flatMap((s) => (Array.isArray(s.deposits) ? s.deposits : [])));
   const errors = $derived(spenders.flatMap((s) => (s.deposits !== undefined && "error" in s.deposits ? [{ name: s.info.name, error: s.deposits.error }] : [])));
   const refused = $derived(spenders.flatMap((s) => (s.refused ? [s.refused] : [])));
@@ -83,7 +86,7 @@
               </div>
             {/if}
             <span class="tiny" class:muted={d.state !== "notFound"} class:bad={d.state === "notFound"} data-deposit-status>{depositState(d)}</span>
-            <code class="tiny muted txid" title="Transaction id on the main chain" data-deposit-txid>{d.txid}</code>
+            <ExplorerLink chain={mainChain} tx={d.txid}><code class="tiny muted txid" title="Transaction id on the main chain" data-deposit-txid>{d.txid}</code></ExplorerLink>
             {#if d.state === "awaitingCredit" && d.claim}
               <details data-claim>
                 <summary class="tiny">Show claim details</summary>

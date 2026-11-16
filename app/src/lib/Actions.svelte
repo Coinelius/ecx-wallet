@@ -1,5 +1,6 @@
 <script lang="ts">
   import ChainMark from "$lib/ChainMark.svelte";
+  import ExplorerLink from "$lib/ExplorerLink.svelte";
   import { chainMark, type ChainView } from "$lib/chains.svelte";
   import Icon from "$lib/Icon.svelte";
   import QrCode from "$lib/QrCode.svelte";
@@ -135,7 +136,7 @@
           </div>
           {#if showing && c.address}
             <div class="qr"><QrCode text={c.address} /></div>
-            <code class="address" data-receive-address>{c.address}</code>
+            <ExplorerLink chain={c.info.chain} address={c.address}><code class="address" data-receive-address>{c.address}</code></ExplorerLink>
             <p class="muted tiny only">Only for {c.info.name} (<span class="mono" data-account-chain>{c.info.chain}</span>).</p>
           {/if}
         </li>
