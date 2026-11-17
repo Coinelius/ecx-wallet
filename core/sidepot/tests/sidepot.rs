@@ -1,4 +1,4 @@
-//! The Sidepot Chain Module against the spec (https://szats.world/sidepot, v0.8) and its reference
+//! The Sidepot Chain Module against the spec (https://sidepot.cash/rules, v0.8) and its reference
 //! implementation (`sidepot-core`, `sidepot-cli`): the game account, the entry's bytes and
 //! signature, and the action links. Every fixture is of the regtest test chain, whose Sidepot is
 //! Slot 88 anchored at block 105.
