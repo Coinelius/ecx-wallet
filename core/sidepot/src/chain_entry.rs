@@ -4,7 +4,7 @@
 //!
 //! Sidepot is BIP300 Slot 88. Its state is a function of eCash's own blocks: Deposits to the Slot
 //! fill game accounts, and signed entries in `OP_RETURN` outputs of ordinary eCash transactions make
-//! the moves (the spec, https://szats.world/sidepot, v0.8, read 2026-11-16).
+//! the moves (the spec, https://sidepot.cash/rules, v0.8, read 2026-11-16).
 //!
 //! - **`params.anchor`:** the eCash block that mined the Slot's proposal (its M1). Every entry's
 //!   signature commits to its hash and to the Slot, so an entry made for one Sidepot can't be
