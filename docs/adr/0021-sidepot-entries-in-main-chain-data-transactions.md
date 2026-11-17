@@ -1,4 +1,4 @@
-# Sidepot (Slot 88): entries in main-chain data transactions, and servers on the wallet's own origin
+# Sidepot (Slot 88): entries in main-chain data transactions
 
 Sidepot is a game in BIP300 Slot 88 whose state is a function of eCash's own blocks ([the spec](https://sidepot.cash/rules), v0.8, read 2026-11-16). A Deposit to the Slot fills a game account. The account's moves, **entries**, are signed instructions in an `OP_RETURN` output of an ordinary eCash transaction. So its Chain Module has no transactions of its own: it holds one key and signs entries, and the main chain's module carries them.
 
@@ -23,17 +23,13 @@ Sidepot is a game in BIP300 Slot 88 whose state is a function of eCash's own blo
 
 Slot 88's Chain Entry names `{ "api": "sidepot", "url": … }`: `GET /state` (`l1_height`, `tip_height`, `clock`, `tip_clock`, `round`, `deadline`, `price_sats`, `pot_sats`, `bonus_pool_sats`, `accounts`) and `GET /account/<64 hex>` (`{ balance_sats, keys, nonce }`, or `null`). The wallet reads the account's balance as the chain's ECX; `null` is a balance of 0. History is empty: an account's Deposits and entries are main-chain transactions, in the main chain's history. There is **no identity check**: the API has no block to ask for. The entries' signatures bind them to one Sidepot, and the main chain's own server passes the check for the chain the game is read from; the Chain Entry's `identityBlock` is the anchor. A Deposit is credited once `/state`'s `l1_height` reaches the M5's block.
 
-## A regtest network, and servers on the wallet's own origin
-
-`ECX_NETWORK=regtest` builds for Sidepot's test chain (ADR 0019): eCash with Bitcoin Core's regtest addresses (`bcrt`, 111, 196), `replayLockTime` 499999998, identity block 105 (`528874da…6098ca8`, which is also Sidepot's anchor there), and Slot 88, active from block 111 (`76e03e61…e3295996`, read from its node 2026-11-16). `cargo test` builds `ecx-sidepot` for regtest, the only network its Chain Entry names, and the other modules for betanet as before.
-
-That web wallet is served by a reverse proxy whose hostname the build doesn't know. So a Chain Entry's server `url` may be **a path on the wallet's own origin** (`/esplora`, `/sidepot-api`). `serverUrl` (`wallet/src/server-api.ts`) resolves it against the origin the wallet runs at; the CSP's `connect-src 'self'` already allows it, and the build adds no origin for it. An extension has no such origin: there the chain's server can't be reached, and says so.
-
-Checked on 2026-11-16 against the regtest chain's servers, by hand-run scripts that aren't part of the test suite. In node, with the wallet's own code and the regtest build's modules: a Deposit of 0.5 ECX to Slot 88 was credited to the game account, a `sidepot:buy` for 2 keys was taken by the game (balance 50,000,000 to 48,000,000 sats, nonce 0 to 1), and a `sidepot:cashout` of everything emptied the account. In headless Firefox 140, with the regtest web build behind a reverse proxy serving `/esplora` and `/sidepot-api` on its own origin: an app on another origin connected through the popup, got the account from `getAddresses`, the wallet's own Deposit was approved in place and credited, and a `sendAction` buy was approved and taken by the game.
-
 ## Mainnet
 
-Added 2026-11-17, once Slot 88 was active: `networks.mainnet` is Slot 88 of `ecash:mainnet`, anchor block 982,723 (`0000000000000000019340956c9c00140207ee2ad5c683894a51bbe072bbbf33`, which mined the proposal), active from block 984,540 (`0000000000000000051f22685492e96581b900b4ed9ee5befd871f63c23c8904`), both read from an eCash node that day. Its server is the game site's API, `https://sidepot.cash/api`, an origin the build adds to the CSP like any other chain's server. The regtest build's Official App moved to `https://regtest.sidepot.cash`.
+`networks.mainnet` is Slot 88 of `ecash:mainnet`, anchor block 982,723 (`0000000000000000019340956c9c00140207ee2ad5c683894a51bbe072bbbf33`, which mined the proposal), active from block 984,540 (`0000000000000000051f22685492e96581b900b4ed9ee5befd871f63c23c8904`), both read from an eCash node on 2026-11-17. Its server is the game site's API, `https://sidepot.cash/api`, an origin the build adds to the CSP like any other chain's server. Mainnet is the only network the Chain Entry names, so `cargo test` builds `ecx-sidepot` for it and the other modules for betanet as before.
+
+## Checked
+
+On 2026-11-16, on a private test chain (an eCash regtest with Slot 88 active), with a separate build for that chain that is not part of this change and by hand-run scripts that aren't part of the test suite. In node, with the wallet's own code and that build's modules: a Deposit of 0.5 ECX to Slot 88 was credited to the game account, a `sidepot:buy` for 2 keys was taken by the game (balance 50,000,000 to 48,000,000 sats, nonce 0 to 1), and a `sidepot:cashout` of everything emptied the account. In headless Firefox 140, with that chain's web build: an app on another origin connected through the popup, got the account from `getAddresses`, the wallet's own Deposit was approved in place and credited, and a `sendAction` buy was approved and taken by the game. Nothing has been deposited or played with the mainnet build yet: the mainnet game opens at block 984,960.
 
 ## Considered options
 

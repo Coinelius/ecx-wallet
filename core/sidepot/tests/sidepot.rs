@@ -1,7 +1,7 @@
 //! The Sidepot Chain Module against the spec (https://sidepot.cash/rules, v0.8) and its reference
 //! implementation (`sidepot-core`, `sidepot-cli`): the game account, the entry's bytes and
-//! signature, and the action links. Every fixture is of the regtest test chain, whose Sidepot is
-//! Slot 88 anchored at block 105.
+//! signature, and the action links. Every fixture is of mainnet, whose Sidepot is Slot 88 anchored
+//! at block 982,723.
 use bitcoin::hashes::{sha256, Hash};
 use bitcoin::secp256k1::schnorr::Signature;
 use bitcoin::secp256k1::{Keypair, Message, Secp256k1, SecretKey, XOnlyPublicKey};
@@ -12,10 +12,10 @@ use ecx_sidepot::{
 };
 
 const STARTER: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
-/// The regtest test chain's block 105, as its node prints it.
-const REGTEST_ANCHOR: &str = "528874dacc090b789007a4ff6016b9427c93f58d717f0e09962a98e126098ca8";
-/// Mainnet's block 982,723, which mined Slot 88's proposal.
+/// Mainnet's block 982,723, which mined Slot 88's proposal, as a node prints it.
 const MAINNET_ANCHOR: &str = "0000000000000000019340956c9c00140207ee2ad5c683894a51bbe072bbbf33";
+/// A block of another chain (Bitcoin's block 1): what another Sidepot's anchor would be.
+const OTHER_ANCHOR: &str = "00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048";
 
 const BUY: &str = "sidepot:buy?round=7&keys=3&max_price=150000&nonce=42&expires=5000";
 const CASHOUT: &str = "sidepot:cashout?amount=250000&dest=00112233445566778899aabbccddeeff00112233&nonce=43&expires=5001";
@@ -39,9 +39,9 @@ fn player() -> String {
 }
 
 #[test]
-fn declare_reports_the_regtest_slot_88_binding_and_its_capabilities() {
+fn declare_reports_the_mainnet_slot_88_binding_and_its_capabilities() {
     let d = declare();
-    assert_eq!(d.binding.chain, "ecash:regtest-s88");
+    assert_eq!(d.binding.chain, "ecash:mainnet-s88");
     assert_eq!(d.binding.format, "sidepot-entry");
     assert_eq!(d.capabilities, ["entries", "depositDestination"]);
 }
@@ -49,38 +49,39 @@ fn declare_reports_the_regtest_slot_88_binding_and_its_capabilities() {
 #[test]
 fn the_chain_entry_puts_sidepot_at_slot_88_under_ecash_anchored_at_its_proposals_block() {
     assert_eq!(chain_entry().name, "Sidepot");
-    let regtest = network();
-    assert_eq!((regtest.chain.as_str(), regtest.slot, regtest.parent.as_deref()), ("ecash:regtest-s88", Some(88), Some("ecash:regtest")));
-    assert_eq!((regtest.params.anchor.height, regtest.params.anchor.hash.as_str()), (105, REGTEST_ANCHOR));
-    assert_eq!(regtest.identity_block, regtest.params.anchor);
-    let activation = regtest.activation.as_ref().expect("pinned");
-    assert_eq!((activation.height, activation.hash.as_str()), (111, "76e03e614fb7b4c17916a2d42369c9c6df03db83522c998306a1b18de3295996"));
-    assert_eq!(regtest.deposit_confirmations, Some(1));
-    assert_eq!(regtest.sidechain_server.api, ServerApi::Sidepot);
-    assert_eq!(regtest.sidechain_server.url, "/sidepot-api", "a path, resolved against the page's origin");
-    let ecx = regtest.ecx_asset().expect("its ECX");
+    let mainnet = network();
+    assert_eq!((mainnet.chain.as_str(), mainnet.slot, mainnet.parent.as_deref()), ("ecash:mainnet-s88", Some(88), Some("ecash:mainnet")));
+    assert_eq!((mainnet.params.anchor.height, mainnet.params.anchor.hash.as_str()), (982_723, MAINNET_ANCHOR));
+    assert_eq!(mainnet.identity_block, mainnet.params.anchor);
+    let activation = mainnet.activation.as_ref().expect("pinned");
+    assert_eq!((activation.height, activation.hash.as_str()), (984_540, "0000000000000000051f22685492e96581b900b4ed9ee5befd871f63c23c8904"));
+    assert_eq!(mainnet.deposit_confirmations, Some(1));
+    assert_eq!(mainnet.sidechain_server.api, ServerApi::Sidepot);
+    assert_eq!(mainnet.sidechain_server.url, "https://sidepot.cash/api");
+    assert_eq!(mainnet.official_apps, ["https://sidepot.cash"]);
+    let ecx = mainnet.ecx_asset().expect("its ECX");
     assert_eq!((ecx.id.as_str(), ecx.ticker.as_str(), ecx.decimals), ("", "ECX", 8));
-    assert_eq!(domain(), Domain { anchor: anchor_bytes(REGTEST_ANCHOR).unwrap(), slot: 88 });
+    assert_eq!(domain(), Domain { anchor: anchor_bytes(MAINNET_ANCHOR).unwrap(), slot: 88 });
 }
 
 #[test]
 fn a_chain_entry_whose_anchor_or_slot_an_entry_cant_carry_is_refused() {
     let mut entry = chain_entry().clone();
     assert!(check_chain_entry(&entry).is_ok());
-    entry.networks.get_mut("regtest").unwrap().params.anchor.height = 106;
+    entry.networks.get_mut("mainnet").unwrap().params.anchor.height = 982_724;
     assert!(check_chain_entry(&entry).unwrap_err().contains("identity block must be the anchor"));
     let mut entry = chain_entry().clone();
-    let regtest = entry.networks.get_mut("regtest").unwrap();
-    (regtest.slot, regtest.chain) = (Some(300), "ecash:regtest-s300".into());
+    let mainnet = entry.networks.get_mut("mainnet").unwrap();
+    (mainnet.slot, mainnet.chain) = (Some(300), "ecash:mainnet-s300".into());
     assert!(check_chain_entry(&entry).unwrap_err().contains("0 to 255"));
 }
 
 #[test]
 fn the_anchor_is_the_block_hash_in_header_byte_order() {
-    let anchor = anchor_bytes(REGTEST_ANCHOR).unwrap();
-    assert_eq!((anchor[0], anchor[31]), (0xa8, 0x52), "the reverse of what the node prints");
-    assert_eq!(anchor_bytes(MAINNET_ANCHOR).unwrap()[24..], [0u8; 8], "mainnet's leading zeros come last");
-    assert!(anchor_bytes("5288").is_none());
+    let anchor = anchor_bytes(MAINNET_ANCHOR).unwrap();
+    assert_eq!((anchor[0], anchor[1], anchor[23]), (0x33, 0xbf, 0x01), "the reverse of what the node prints");
+    assert_eq!(anchor[24..], [0u8; 8], "its leading zeros come last");
+    assert!(anchor_bytes("0000").is_none());
     assert!(anchor_bytes(&"zz".repeat(32)).is_none());
 }
 
@@ -166,7 +167,7 @@ fn the_signature_is_bip340_over_the_tagged_hash_of_anchor_slot_and_the_unsigned_
         // The message, built here from the spec's words alone.
         let tag = sha256::Hash::hash(b"Sidepot/entry").to_byte_array();
         let mut preimage = [&tag[..], &tag[..]].concat();
-        let mut anchor = unhex(REGTEST_ANCHOR);
+        let mut anchor = unhex(MAINNET_ANCHOR);
         anchor.reverse();
         preimage.extend_from_slice(&anchor);
         preimage.push(88);
@@ -189,7 +190,7 @@ fn the_signature_fails_for_another_slot_another_anchor_or_a_changed_entry() {
     let ours = domain();
     assert!(entry.verify(&secp, &ours));
     assert!(!entry.verify(&secp, &Domain { slot: 89, ..ours }), "another Slot");
-    assert!(!entry.verify(&secp, &Domain { anchor: anchor_bytes(MAINNET_ANCHOR).unwrap(), ..ours }), "mainnet's Sidepot");
+    assert!(!entry.verify(&secp, &Domain { anchor: anchor_bytes(OTHER_ANCHOR).unwrap(), ..ours }), "a Sidepot anchored in another chain");
     let mut display_order = ours;
     display_order.anchor.reverse();
     assert!(!entry.verify(&secp, &display_order), "the anchor in the node's printed order");
@@ -204,17 +205,17 @@ fn signing_takes_no_randomness_so_the_same_link_makes_the_same_entry() {
     assert_eq!(sign_entry(BUY, STARTER).unwrap(), sign_entry(BUY, STARTER).unwrap());
 }
 
-/// `sidepot-cli buy 0101…01 <regtest anchor> 88 7 3 150000 42 5000` and
-/// `sidepot-cli cashout 0101…01 <regtest anchor> 88 250000 00112233445566778899aabbccddeeff00112233 43 5001`
-/// (the reference at `c98535d`, run 2026-11-16), each cut before and after its 64 signature bytes:
+/// `sidepot-cli buy 0101…01 <mainnet anchor> 88 7 3 150000 42 5000` and
+/// `sidepot-cli cashout 0101…01 <mainnet anchor> 88 250000 00112233445566778899aabbccddeeff00112233 43 5001`
+/// (the reference at `c98535d`, run 2026-11-17), each cut before and after its 64 signature bytes:
 /// the reference signs with auxiliary randomness, so only its signature differs from ours.
 const REFERENCE_BUY: (&str, &str) = (
     "53504f540001070000000300f0490200000000001b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f2a0000000000000088130000",
-    "3656f5afe4c9e28dfb98f84b549707289a908926546ec5dc3c83038744b475cbd337cd5392ba00fa128d66d2be29ce8e9ef4327ce918569aab6a35f6ae7e628a",
+    "a15a5d7f557ca66973ced28913eaf2cb3d4ae57ba004c56f1ee4f16be1c7815c58ea5e5261f00730774b735b29bdbc7a7241878db3c065c2050b39ef967779d8",
 );
 const REFERENCE_CASHOUT: (&str, &str) = (
     "53504f54000290d003000000000000112233445566778899aabbccddeeff001122331b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f2b0000000000000089130000",
-    "535a792651739929175ca6ce36c6f4753339d89b2118dc39a1377f9486cf10c34b98455d6e12aad54cfe1cc37d82e2ba26fe150debe6e29f3e16ec053e28207a",
+    "49a2cafda69d92327efdcd4bc6c7195192b40b5cd83952414b04510fb1b5ff819ff5ae5b58ee419db6ae874031445c7fef63eed3088d73a5de83ab5cfce68f02",
 );
 
 #[test]
@@ -245,7 +246,7 @@ fn the_view_says_every_field_read_back_from_the_signed_bytes() {
     let buy = sign_entry(BUY, STARTER).unwrap().view;
     assert_eq!(buy.action, EntryAction::Buy { round: 7, keys: 3, max_price: "150000".into(), max_total: "450000".into() });
     assert_eq!(buy.player, Some(format!("spot:{}", player())));
-    assert_eq!((buy.nonce.as_str(), buy.expires, buy.slot, buy.anchor.as_str()), ("42", 5000, 88, REGTEST_ANCHOR));
+    assert_eq!((buy.nonce.as_str(), buy.expires, buy.slot, buy.anchor.as_str()), ("42", 5000, 88, MAINNET_ANCHOR));
 
     let cashout = sign_entry(CASHOUT, STARTER).unwrap().view;
     assert_eq!(cashout.action, EntryAction::Cashout { amount: "250000".into(), dest: "00112233445566778899aabbccddeeff00112233".into() });

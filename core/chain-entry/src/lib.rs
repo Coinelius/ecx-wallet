@@ -86,9 +86,7 @@ fn is_false(value: &bool) -> bool {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SidechainServerEntry {
     pub api: ServerApi,
-    /// Base URL; the extension build grants itself access to its origin and nothing else. A web
-    /// build may name a path on its own origin instead (`/esplora`), which the wallet resolves
-    /// against the page's origin when it runs (docs/adr/0021).
+    /// Base URL; the extension build grants itself access to its origin and nothing else.
     pub url: String,
 }
 

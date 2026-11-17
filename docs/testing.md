@@ -40,10 +40,6 @@ The shipped build is mainnet's and reads public explorers, which tests can't con
 - Tests that load a module directly (`core-modules.test`, `flush.test`…) load the e2e build's, which is betanet's. `core-modules.test` also checks that the shipped modules serve mainnet.
 - Browser tests run on the e2e build (`launchWallet`'s default), so none reaches a public explorer. Only `extension-loads.test` loads the shipped build (`{ build: "shipped" }`), and it opens only onboarding pages.
 
-### The regtest build
-
-`ECX_NETWORK=regtest pnpm build:web` (Sidepot's test chain: the main chain and Slot 88, ADR 0021) has no browser tests yet. The Rust tests cover `sidepot.wasm`'s entries and `l1.wasm`'s data transactions (`core/sidepot/tests`, `core/l1/tests/data.rs`), and `web-host.test` checks what that build bundles and that its servers, paths on the wallet's own origin, add no CSP origin. Its Chain Entries aren't swapped for stubs: the e2e build is betanet's.
-
 ### The web e2e build
 
 `pnpm build:e2e:web` runs after `pnpm build:e2e` and reuses its stub-backed core modules. It builds the web app into `e2e/dist/web`, leaving `app/build-web` for the shipped web build. `ECX_CORE_DIST`, `ECX_CHAIN_ENTRIES` and `ECX_APP_WEB_DIST` select the WASM, the Chain Entries used to derive CSP origins, and the output directory. Slot 24 stays excluded; the web build contains L1 and Flush. The Esplora stubs send no CORS headers, like the real Elements explorer, unless a test passes `cors: true` in their config; the web tests do, since their pages can't use `host_permissions`. Web tests navigate the way in-app links do: assigning `location.hash` would bypass SvelteKit's router and reload the page, ending the Worker and its unlocked session.

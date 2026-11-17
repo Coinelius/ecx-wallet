@@ -75,7 +75,7 @@ pub(crate) fn refuse(code: RefusalCode, message: impl Into<String>) -> Refusal {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Binding {
-    /// CAIP-2, e.g. `ecash:regtest-s88`.
+    /// CAIP-2, e.g. `ecash:mainnet-s88`.
     pub chain: String,
     /// `sidepot-entry`: no Signing Request has it. Entries are made from action links only.
     pub format: String,

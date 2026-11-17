@@ -89,15 +89,15 @@ A request the user turns down fails with `code` 4001; show it as a choice, not a
 
 **Flush DEX sites** that use the extension's `window.flush` (`flush_requestAddress`, `flush_submit({ uri })`) get no `window.flush` inside a web wallet. There, call `getAddresses({ slot: 46 })` and `sendAction({ slot: 46, action: uri })`, with a Grant for `getAddresses` and `sendTransfer`: `connect({ slots: [46], methods: ["getAddresses", "sendTransfer"] })`. A `sendTransfer` Grant also covers `sendAction`, which has no Grant of its own; asking for one fails with 4200 (see [ADR 0016](adr/0016-flush-actions-through-window-flush.md)).
 
-**Sidepot sites** (Slot 88, regtest for now; [ADR 0021](adr/0021-sidepot-entries-in-main-chain-data-transactions.md)) use the same three calls. The account is the wallet's; the site reads the game from Sidepot's server and hands the wallet each move as a `sidepot:` link:
+**Sidepot sites** (Slot 88; [ADR 0021](adr/0021-sidepot-entries-in-main-chain-data-transactions.md)) use the same three calls. The account is the wallet's; the site reads the game from Sidepot's server and hands the wallet each move as a `sidepot:` link:
 
 ```js
 await wallet.provider.request({ method: "connect", params: { slots: [88], methods: ["getAddresses", "sendTransfer"] } });
 
 // The game account: `address` is "spot:<64 hex>", `publicKey` the same 32-byte x-only key (not a 33-byte compressed key).
 const [{ address, publicKey }] = await wallet.provider.request({ method: "getAddresses", params: { slot: 88 } });
-const account = await (await fetch(`/sidepot-api/account/${publicKey}`)).json(); // { balance_sats, keys, nonce } or null
-const state = await (await fetch("/sidepot-api/state")).json();
+const account = await (await fetch(`https://sidepot.cash/api/account/${publicKey}`)).json(); // { balance_sats, keys, nonce } or null
+const state = await (await fetch("https://sidepot.cash/api/state")).json();
 
 // A buy: the wallet signs the entry, sends it in a main-chain transaction and answers that transaction's txid.
 const action = `sidepot:buy?round=${state.round}&keys=3&max_price=${state.price_sats}&nonce=${(account?.nonce ?? 0) + 1}&expires=${state.tip_clock + 3}`;

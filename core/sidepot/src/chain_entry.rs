@@ -12,14 +12,10 @@
 //! - **`identityBlock`:** the anchor again. Sidepot has no blocks a server could be asked for: its
 //!   chain is eCash's, whose own server passes the identity check (`core/l1/chain-entry.json`).
 //!
-//! **regtest** (one private test chain, read from its node 2026-11-16): the proposal was mined in
-//! block 105, `528874da…6098ca8`, and the Slot is active from block 111, `76e03e61…e3295996`
-//! (`activation`, docs/adr/0004). `depositConfirmations` is 1: the game credits a Deposit as it reads
-//! the Deposit's block. The server is a path on the web wallet's own origin, `/sidepot-api`.
-//!
 //! **mainnet** (read from an eCash node 2026-11-17): the proposal was mined in block 982,723,
-//! `00000000…72bbbf33` (the anchor), and the Slot is active from block 984,540, `00000000…c23c8904`.
-//! The server is the game site's API, `https://sidepot.cash/api`.
+//! `00000000…72bbbf33` (the anchor), and the Slot is active from block 984,540, `00000000…c23c8904`
+//! (`activation`, docs/adr/0004). `depositConfirmations` is 1: the game credits a Deposit as it reads
+//! the Deposit's block. The server is the game site's API, `https://sidepot.cash/api`.
 //!
 //! `build.rs` picks the file: `chain-entry.json`, or `$ECX_SIDEPOT_CHAIN_ENTRY`.
 use std::sync::OnceLock;

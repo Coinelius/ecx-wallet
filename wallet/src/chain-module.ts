@@ -37,7 +37,6 @@ export type ServerApi = "ecx-v0" | "esplora" | "flush" | "sidepot";
 /** A network's default Sidechain Server: where it is and which Server API it speaks. */
 export interface SidechainServerEntry {
   api: ServerApi;
-  /** A base URL, or a path on the web wallet's own origin (`/esplora`), resolved when it runs (`serverUrl`, docs/adr/0021). */
   url: string;
 }
 

@@ -73,7 +73,7 @@ Every chain has a Chain Entry, and its keys follow its place in the chain tree (
 
 - **eCash**, the root (`core/l1/chain-entry.json`, no Slot or parent), gets the L1 Account Key. `l1.wasm` derives BIP84 P2WPKH addresses (`bc1q…`).
 - **A Slot** under eCash gets its Starter, and only that Slot's Chain Module ever sees it.
-- **Sidepot** (Slot 88, on mainnet and regtest; ADR 0021) has one key and no addresses of a chain: `sidepot.wasm` derives its game account at `m/300'/88'/0'` of the Slot's Starter and shows it as `spot:<x-only key>`.
+- **Sidepot** (Slot 88, on mainnet; ADR 0021) has one key and no addresses of a chain: `sidepot.wasm` derives its game account at `m/300'/88'/0'` of the Slot's Starter and shows it as `spot:<x-only key>`.
 - **Deeper chains** are refused. `createKeyRouting` in `wallet/src/accounts.ts` checks the Chain Entry before handing any key out.
 
 `accounts.receiveAddresses(slot)` and `accounts.l1ReceiveAddresses()` do the deriving. Each module runs in its own WASM instance, created on first use.
@@ -84,18 +84,16 @@ Every chain has a Chain Entry, and its keys follow its place in the chain tree (
 
 Each chain is read from the Sidechain Server its Chain Entry names for the module's network, in the Server API named next to the URL: `sidechainServer: { api, url }` (ADR 0002). eCash, Elements+ and Flush speak Esplora; Flush's explorer adds finality (`"flush"`, ADR 0012). Sidepot's server speaks its own small API (`"sidepot"`, below):
 
-| Chain | Server (mainnet) | Server (betanet) | Server (regtest) | Chain Entry |
-|---|---|---|---|---|
-| eCash | `https://explorer.ecash.ninja/api` | `https://esplora.beta.ecash.ninja` | `/esplora` | `core/l1/chain-entry.json` |
-| Elements+ | none (no mainnet chain) | Slot 24, `https://explorer.bitnames.info/api` | none | `core/elements/chain-entry.json` |
-| Flush | Slot 46, `https://explorer.blockfab.org/flush/api` | Slot 99 (ADR 0014), `https://explorer.blockfab.org/betanet/flush/api` | none | `core/flush/chain-entry.json` |
-| Sidepot | none yet | none | Slot 88, `/sidepot-api` | `core/sidepot/chain-entry.json` |
-
-A `url` that is a path (regtest's) is on the web wallet's own origin: the wallet is served beside its servers by one reverse proxy, under a hostname the build doesn't know. `serverUrl` (`wallet/src/server-api.ts`) resolves it against the origin the wallet runs at, and the CSP's `connect-src 'self'` covers it (ADR 0021). Only a web wallet can reach such a server.
+| Chain | Server (mainnet) | Server (betanet) | Chain Entry |
+|---|---|---|---|
+| eCash | `https://explorer.ecash.ninja/api` | `https://esplora.beta.ecash.ninja` | `core/l1/chain-entry.json` |
+| Elements+ | none (no mainnet chain) | Slot 24, `https://explorer.bitnames.info/api` | `core/elements/chain-entry.json` |
+| Flush | Slot 46, `https://explorer.blockfab.org/flush/api` | Slot 99 (ADR 0014), `https://explorer.blockfab.org/betanet/flush/api` | `core/flush/chain-entry.json` |
+| Sidepot | Slot 88, `https://sidepot.cash/api` | none | `core/sidepot/chain-entry.json` |
 
 ## Networks
 
-Each build serves one network, `$ECX_NETWORK` (ADR 0019): **mainnet** for `pnpm build` and `pnpm build:web`, **betanet** for the e2e build and `cargo test`, and **regtest** (`ECX_NETWORK=regtest pnpm build:web`, a web wallet with the main chain and Sidepot, Slot 88, for Sidepot's test chain; ADR 0021; `cargo test` builds `ecx-sidepot` for it). A Chain Entry describes a chain on each of its networks, with its Slot there (`networks.<name>.slot`). `core/scripts/chains.mjs` bundles only the modules whose Chain Entry names the build's network, and writes `wallet/src/module-files.ts` (Slot to `.wasm`) for it. Each module's `build.rs` reads the same variable into `NETWORK`, the network whose entry the module serves. Flush's link network follows it (`ecash` on mainnet, `ecashbeta` on betanet).
+Each build serves one network, `$ECX_NETWORK` (ADR 0019): **mainnet** for `pnpm build` and `pnpm build:web`, **betanet** for the e2e build and `cargo test` (which builds `ecx-sidepot` for mainnet, the one network its Chain Entry names; ADR 0021). A Chain Entry describes a chain on each of its networks, with its Slot there (`networks.<name>.slot`). `core/scripts/chains.mjs` bundles only the modules whose Chain Entry names the build's network, and writes `wallet/src/module-files.ts` (Slot to `.wasm`) for it. Each module's `build.rs` reads the same variable into `NETWORK`, the network whose entry the module serves. Flush's link network follows it (`ecash` on mainnet, `ecashbeta` on betanet).
 
 The extension build turns the build network's server URLs into `host_permissions` and the CSP's `connect-src`. `wallet/src/server-api.ts` picks the client for the Server API.
 
@@ -211,7 +209,7 @@ A ticker of the Chain Entry's, in any case, is refused, with the reason shown. A
 3. `l1.wasm`'s `build_deposit` builds the M5 from the account's confirmed coins, less those a main-chain Send or Deposit holds: largest first, the fee at the 6-block estimate, change to the first unused change address (else `/1/19`, as a Send). Its coins are then held like a Send's. Every input carries its previous transaction, so the module checks every value itself. Only the coins it could pick are fetched (`enoughCoins`): the fewest, largest first by the server's values, that cover the amount and the most fee they could cost, so the module stops among them where it would among all. If, reading their real values, it finds them short (the server overstated one), it gets every coin. It refuses an M5 eCash won't relay: over 10,000 vB, or over 1,000 vB when the Treasury it spends is a pending M5's, and a destination over 100 bytes (Backbone's limits, #57).
 4. The L1 Decoder's Clear View is shown in place, on the Deposit screen. After approval: `sign`, `finalize`, `POST /tx`.
 
-**The replay marker:** `l1.wasm` refuses to check, decode, sign or finalize any spend without it: the network's `nLockTime` (499999998 on mainnet and regtest, 499999999 on betanet) and a non-final `nSequence`. Its `sign` also refuses a PSBT with no input of the L1 Account Key's (`nothingToSign`): it would come back unsigned and fail only at broadcast.
+**The replay marker:** `l1.wasm` refuses to check, decode, sign or finalize any spend without it: the network's `nLockTime` (499999998 on mainnet, 499999999 on betanet) and a non-final `nSequence`. Its `sign` also refuses a PSBT with no input of the L1 Account Key's (`nothingToSign`): it would come back unsigned and fail only at broadcast.
 
 **Tracking:** pending Deposits sit in `storage.local` (`deposit:<txid>`) and show under "In progress" on the Activity tabs (`deposit.list`), each with its txid. They go through:
 
@@ -219,7 +217,7 @@ A ticker of the Chain Entry's, in any case, is refused, with the reason shown. A
 2. waiting for the operator's `importdrivechaindeposit` (the claim arguments are shown), or on Flush, which pays Deposits itself, for its payout;
 3. "credited", once the Slot's server lists a transaction to the address (`/address/:a/txs`) with an input claiming the Deposit's txid (`is_pegin`), confirmed or not. Past the first page it pages back (`/txs/chain/:last`), 25 confirmed at a time, until a page ends in a transaction mined below the Slot's tip when the Deposit was sent, less 10 blocks for a reorg (`isCredited`). That height is read just after the broadcast, waiting at most 5 seconds, and kept with the Deposit (`slotHeight`); without it, the tracker pages to the end. Heights, not block times: after a gap in a BMM chain's blocks, a block's time may legally be hours in the past. On Flush, nothing names the M5: its credit is a coinbase output after the first paying the address exactly the Deposit's value, in a block above `slotHeight`, that no other Deposit has claimed (`flushCredit`). A Deposit sent without `slotHeight` takes Flush's tip on a later check, while it is still short of its eCash confirmations and so can't have been paid. Until it has one it isn't matched at all: an older payout of the same value (another Deposit's, or one no longer tracked) could pass for its credit. Deposits are matched oldest first, as Flush pays them in eCash order. The matched output is kept with the Deposit, which stays listed as credited while another Deposit of the same value to the same address waits. Each check asks Flush's server for that coinbase again (`/tx/:txid/status`): a soft block can be replaced (ADR 0012), and once the coinbase is no longer confirmed the Deposit's credit is cleared and matched again, so its stale output doesn't stand in for another Deposit's payout (#71).
 
-On **Sidepot**, the destination is the game account, `spot:<x-only key>` in ASCII (minimum 1,000 sats, the wallet's own floor), its activation pinned at block 111 on regtest. The game credits the account as it reads the M5's eCash block: a Deposit is "credited" once Sidepot's server says it has read that far (`/state`'s `l1_height`), and until then it waits as Flush's does (ADR 0021).
+On **Sidepot**, the destination is the game account, `spot:<x-only key>` in ASCII (minimum 1,000 sats, the wallet's own floor), its activation pinned at block 984,540 on mainnet. The game credits the account as it reads the M5's eCash block: a Deposit is "credited" once Sidepot's server says it has read that far (`/state`'s `l1_height`), and until then it waits as Flush's does (ADR 0021).
 
 A stuck Deposit (its server doesn't know it, or its status can't be read) offers "Stop tracking": the wallet forgets it, and the transaction is unaffected. Healthy ones offer nothing.
 
