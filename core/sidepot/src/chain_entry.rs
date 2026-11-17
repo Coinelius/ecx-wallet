@@ -17,10 +17,9 @@
 //! (`activation`, docs/adr/0004). `depositConfirmations` is 1: the game credits a Deposit as it reads
 //! the Deposit's block. The server is a path on the web wallet's own origin, `/sidepot-api`.
 //!
-//! **mainnet** has no entry yet: the proposal was mined in block 982,723,
-//! `0000000000000000019340956c9c00140207ee2ad5c683894a51bbe072bbbf33` (the mainnet anchor), but the
-//! Slot isn't active and no server reports its game. TODO: add `networks.mainnet` (Slot 88, parent
-//! `ecash:mainnet`, that anchor) once the Slot activates, pinning `activation` then.
+//! **mainnet** (read from an eCash node 2026-11-17): the proposal was mined in block 982,723,
+//! `00000000…72bbbf33` (the anchor), and the Slot is active from block 984,540, `00000000…c23c8904`.
+//! The server is the game site's API, `https://sidepot.cash/api`.
 //!
 //! `build.rs` picks the file: `chain-entry.json`, or `$ECX_SIDEPOT_CHAIN_ENTRY`.
 use std::sync::OnceLock;

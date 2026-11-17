@@ -31,6 +31,10 @@ That web wallet is served by a reverse proxy whose hostname the build doesn't kn
 
 Checked on 2026-11-16 against the regtest chain's servers, by hand-run scripts that aren't part of the test suite. In node, with the wallet's own code and the regtest build's modules: a Deposit of 0.5 ECX to Slot 88 was credited to the game account, a `sidepot:buy` for 2 keys was taken by the game (balance 50,000,000 to 48,000,000 sats, nonce 0 to 1), and a `sidepot:cashout` of everything emptied the account. In headless Firefox 140, with the regtest web build behind a reverse proxy serving `/esplora` and `/sidepot-api` on its own origin: an app on another origin connected through the popup, got the account from `getAddresses`, the wallet's own Deposit was approved in place and credited, and a `sendAction` buy was approved and taken by the game.
 
+## Mainnet
+
+Added 2026-11-17, once Slot 88 was active: `networks.mainnet` is Slot 88 of `ecash:mainnet`, anchor block 982,723 (`0000000000000000019340956c9c00140207ee2ad5c683894a51bbe072bbbf33`, which mined the proposal), active from block 984,540 (`0000000000000000051f22685492e96581b900b4ed9ee5befd871f63c23c8904`), both read from an eCash node that day. Its server is the game site's API, `https://sidepot.cash/api`, an origin the build adds to the CSP like any other chain's server. The regtest build's Official App moved to `https://regtest.sidepot.cash`.
+
 ## Considered options
 
 - **Depend on the reference crate `sidepot-core`:** rejected. It signs with ambient randomness and a global secp context, and a module here imports nothing (core/README.md).
@@ -39,7 +43,6 @@ Checked on 2026-11-16 against the regtest chain's servers, by hand-run scripts t
 - **The 33-byte even-parity compressed key as `publicKey`:** rejected. Every place Sidepot names a player takes the x-only key; a site would strip the first byte each time.
 - **Any `OP_RETURN` Clear:** rejected. More than one, or one holding coins, is nothing the wallet builds.
 - **An identity check through `/state`:** rejected. Nothing in it identifies a chain.
-- **Slot 88 on mainnet now:** not yet. The proposal was mined in block 982,723 (`0000000000000000019340956c9c00140207ee2ad5c683894a51bbe072bbbf33`, the mainnet anchor), but the Slot isn't active and no server reports its game. A Chain Entry needs both; adding it would put a chain that can't be read into the shipped wallet.
 
 ## Consequences
 
@@ -48,4 +51,3 @@ Checked on 2026-11-16 against the regtest chain's servers, by hand-run scripts t
 - The wallet can't know whether the game will take an entry (the price may have moved, the round ended, the nonce passed). The fee is paid either way, and the approval says so.
 - A cashout's coin arrives on the Sidepot sidechain, which the wallet doesn't show: it has no addresses there.
 - The wallet's own screens don't make entries yet: only an app does, through `sendAction`.
-- Mainnet needs its `networks.mainnet` entry once Slot 88 activates: the anchor above, a pinned `activation`, and a server.

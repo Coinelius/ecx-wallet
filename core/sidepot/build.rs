@@ -6,7 +6,7 @@ use std::path::PathBuf;
 fn main() {
     // The network the module serves: `$ECX_NETWORK`. Unset (as for `cargo test`), regtest, the one
     // network Sidepot's Chain Entry names and every fixture of its tests is of: the other modules
-    // default to betanet, where Sidepot has no chain (core/scripts/build.mjs bundles it for regtest only).
+    // default to betanet, where Sidepot has no chain (core/scripts/build.mjs bundles it for mainnet and regtest).
     println!("cargo:rerun-if-env-changed=ECX_NETWORK");
     let network = env::var("ECX_NETWORK").unwrap_or_else(|_| "regtest".into());
     println!("cargo:rustc-env=ECX_NETWORK={network}");

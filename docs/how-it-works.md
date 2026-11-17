@@ -73,7 +73,7 @@ Every chain has a Chain Entry, and its keys follow its place in the chain tree (
 
 - **eCash**, the root (`core/l1/chain-entry.json`, no Slot or parent), gets the L1 Account Key. `l1.wasm` derives BIP84 P2WPKH addresses (`bc1q…`).
 - **A Slot** under eCash gets its Starter, and only that Slot's Chain Module ever sees it.
-- **Sidepot** (Slot 88, regtest only for now; ADR 0021) has one key and no addresses of a chain: `sidepot.wasm` derives its game account at `m/300'/88'/0'` of the Slot's Starter and shows it as `spot:<x-only key>`.
+- **Sidepot** (Slot 88, on mainnet and regtest; ADR 0021) has one key and no addresses of a chain: `sidepot.wasm` derives its game account at `m/300'/88'/0'` of the Slot's Starter and shows it as `spot:<x-only key>`.
 - **Deeper chains** are refused. `createKeyRouting` in `wallet/src/accounts.ts` checks the Chain Entry before handing any key out.
 
 `accounts.receiveAddresses(slot)` and `accounts.l1ReceiveAddresses()` do the deriving. Each module runs in its own WASM instance, created on first use.
