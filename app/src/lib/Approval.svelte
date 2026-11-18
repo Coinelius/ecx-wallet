@@ -6,6 +6,7 @@
     listChains,
     resolveApproval,
     unlockApproval,
+    vaultStatus,
     type ApprovalPrompt,
     type AssetAmount,
     type ChainInfo,
@@ -34,6 +35,9 @@
   }: { id: string; ondone: () => void; onshow?: (origin: string) => void; hosted?: boolean; focus?: boolean } = $props();
   let prompt = $state<ApprovalPrompt | null | undefined>(undefined);
   let busy = $state(false);
+  /** False once the background says this browser holds no wallet: there is nothing to unlock. */
+  let walletExists = $state<boolean | undefined>(undefined);
+  vaultStatus().then((s) => (walletExists = s.exists), () => {});
   let blindOptIn = $state(false);
   let password = $state("");
   let error = $state("");
@@ -207,6 +211,16 @@
       <h1>Request no longer pending</h1>
       <p class="muted">This request was already answered or has expired. You can close this window.</p>
     </div>
+  </main>
+{:else if walletExists === false}
+  <!-- A site asked before any wallet was made here: there is nothing to grant from or unlock. -->
+  <main class="screen" data-approval-ready data-no-wallet>
+    <div class="title">
+      <h1>No wallet here yet</h1>
+      <p class="muted small">This site sent your wallet a request, but this browser has no wallet. Create or import one first, then connect again from the site.</p>
+    </div>
+    {@render requester(prompt.origin, "chain" in prompt ? prompt.chain : undefined)}
+    <button class="primary block" disabled={busy} {@attach grabFocus} data-reject onclick={() => decide(false)}>Set up a wallet</button>
   </main>
 {:else if prompt.kind === "connect"}
   <main class="screen" data-approval-ready data-armed={armed || undefined}>
