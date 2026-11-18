@@ -90,7 +90,7 @@ Each chain is read from the Sidechain Server its Chain Entry names for the modul
 | eCash | `https://explorer.ecash.ninja/api` | `https://esplora.beta.ecash.ninja` | `core/l1/chain-entry.json` |
 | Elements+ | none (no mainnet chain) | Slot 24, `https://explorer.bitnames.info/api` | `core/elements/chain-entry.json` |
 | Flush | Slot 46, `https://explorer.blockfab.org/flush/api` | Slot 99 (ADR 0014), `https://explorer.blockfab.org/betanet/flush/api` | `core/flush/chain-entry.json` |
-| Sidepot | Slot 88, `https://sidepot.cash/api` | none | `core/sidepot/chain-entry.json` |
+| Sidepot | Slot 88, `https://explorer.blockfab.org/sidepot/api/v1/l2/feature/game` | none | `core/sidepot/chain-entry.json` |
 
 ## Networks
 

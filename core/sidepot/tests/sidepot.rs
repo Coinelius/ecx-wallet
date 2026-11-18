@@ -57,7 +57,7 @@ fn the_chain_entry_puts_sidepot_at_slot_88_under_ecash_anchored_at_its_proposals
     assert_eq!((activation.height, activation.hash.as_str()), (984_540, "0000000000000000051f22685492e96581b900b4ed9ee5befd871f63c23c8904"));
     assert_eq!(mainnet.deposit_confirmations, Some(1));
     assert_eq!(mainnet.sidechain_server.api, ServerApi::Sidepot);
-    assert_eq!(mainnet.sidechain_server.url, "https://sidepot.cash/api");
+    assert_eq!(mainnet.sidechain_server.url, "https://explorer.blockfab.org/sidepot/api/v1/l2/feature/game");
     assert_eq!(mainnet.official_apps, ["https://sidepot.cash"]);
     let ecx = mainnet.ecx_asset().expect("its ECX");
     assert_eq!((ecx.id.as_str(), ecx.ticker.as_str(), ecx.decimals), ("", "ECX", 8));

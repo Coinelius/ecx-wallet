@@ -25,7 +25,7 @@ Slot 88's Chain Entry names `{ "api": "sidepot", "url": … }`: `GET /state` (`l
 
 ## Mainnet
 
-`networks.mainnet` is Slot 88 of `ecash:mainnet`, anchor block 982,723 (`0000000000000000019340956c9c00140207ee2ad5c683894a51bbe072bbbf33`, which mined the proposal), active from block 984,540 (`0000000000000000051f22685492e96581b900b4ed9ee5befd871f63c23c8904`), both read from an eCash node on 2026-11-17. Its server is the game site's API, `https://sidepot.cash/api`, an origin the build adds to the CSP like any other chain's server. Mainnet is the only network the Chain Entry names, so `cargo test` builds `ecx-sidepot` for it and the other modules for betanet as before.
+`networks.mainnet` is Slot 88 of `ecash:mainnet`, anchor block 982,723 (`0000000000000000019340956c9c00140207ee2ad5c683894a51bbe072bbbf33`, which mined the proposal), active from block 984,540 (`0000000000000000051f22685492e96581b900b4ed9ee5befd871f63c23c8904`), both read from an eCash node on 2026-11-17. Its server is BlockFab's explorer, `https://explorer.blockfab.org/sidepot/api/v1/l2/feature/game`, which relays its own Sidepot node's game reads in the shapes above (`/state`, `/account/<key>`): the origin eCash's and Flush's servers already have, so the CSP names no other. A Deposit shows as credited when that node has read its block. Mainnet is the only network the Chain Entry names, so `cargo test` builds `ecx-sidepot` for it and the other modules for betanet as before.
 
 ## Checked
 

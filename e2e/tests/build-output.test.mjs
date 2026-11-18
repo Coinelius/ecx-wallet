@@ -66,7 +66,7 @@ function splitManifest(manifest) {
 for (const target of Object.keys(DIST)) {
   test(`${target}: the shipped build reaches eCash's, Flush's and Sidepot's mainnet servers, and nothing else`, async () => {
     const { hostPermissions, connectSrc } = splitManifest(JSON.parse(await readFile(path.join(DIST[target], "manifest.json"), "utf8")));
-    const servers = ["https://explorer.blockfab.org", "https://explorer.ecash.ninja", "https://sidepot.cash"];
+    const servers = ["https://explorer.blockfab.org", "https://explorer.ecash.ninja"];
     assert.deepEqual(hostPermissions, servers.map((s) => `${s}/*`));
     assert.equal(connectSrc, `connect-src 'self' ${servers.join(" ")}`);
   });

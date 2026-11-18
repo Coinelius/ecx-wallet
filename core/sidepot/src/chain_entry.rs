@@ -15,7 +15,8 @@
 //! **mainnet** (read from an eCash node 2026-11-17): the proposal was mined in block 982,723,
 //! `00000000…72bbbf33` (the anchor), and the Slot is active from block 984,540, `00000000…c23c8904`
 //! (`activation`, docs/adr/0004). `depositConfirmations` is 1: the game credits a Deposit as it reads
-//! the Deposit's block. The server is the game site's API, `https://sidepot.cash/api`.
+//! the Deposit's block. The server is BlockFab's explorer, which
+//! relays its own Sidepot node's game reads in the game site's shapes: `https://explorer.blockfab.org/sidepot/api/v1/l2/feature/game`.
 //!
 //! `build.rs` picks the file: `chain-entry.json`, or `$ECX_SIDEPOT_CHAIN_ENTRY`.
 use std::sync::OnceLock;

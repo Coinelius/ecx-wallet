@@ -26,7 +26,7 @@ test("the mainnet web build bundles Flush as Slot 46 and Sidepot as Slot 88, and
   delete env.ECX_CHAIN_ENTRIES;
   const [source, origins] = JSON.parse(execFileSync(process.execPath, ["--input-type=module", "-e", script], { env }).toString());
   assert.equal(source, 'export const CHAIN_MODULE_FILES = {"46":"flush.wasm","88":"sidepot.wasm"};');
-  assert.deepEqual(origins, ["https://explorer.blockfab.org", "https://explorer.ecash.ninja", "https://sidepot.cash"]);
+  assert.deepEqual(origins, ["https://explorer.blockfab.org", "https://explorer.ecash.ninja"]);
 });
 
 test("the web Worker refuses claimed dApp origins, takes an app's only from appRequest, and excludes Slot 24 at the router", async () => {
