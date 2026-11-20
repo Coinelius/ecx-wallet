@@ -22,7 +22,7 @@ import { ErrorCode, ProviderRpcError } from "./errors";
 import type { SendResult } from "./pull-path";
 import { sendRequester } from "./send";
 import { SidechainServerError } from "./sidechain-server";
-import { isSidepotAddress, outpointKey, type SidepotClient, type SidepotCoins } from "./sidepot";
+import { isSidepotAddress, outpointKey, type SidepotClient, type SidepotCoinEvent, type SidepotCoins } from "./sidepot";
 import { rejected, type ApprovalContext, type SignPrompt, type SigningApproval } from "./signing";
 import { createSpendQueue, HOLD_BLOCKS, type SpendQueue } from "./spends";
 import type { KeyValueStore } from "./vault";
@@ -80,6 +80,8 @@ export interface SidepotCoinsReport {
   withdrawals: WaitingWithdrawal[];
   /** Sidepot's fee for a spend, sats. */
   fee: string;
+  /** What happened to the address's coins, newest first, if the server keeps histories. The server's account. */
+  history?: SidepotCoinEvent[];
   /** What the chain's operator says about withdrawals, such as when the next bundle is planned. The server's words. */
   withdrawalNotice?: string;
   /** When the server reported it, in milliseconds since the epoch. */
@@ -306,7 +308,9 @@ export function createSidepotCoins(deps: SidepotCoinsDeps) {
       const target = await coinsChain(slot);
       const { client } = target;
       const { address } = target.module.coinAddress(await target.key());
-      const [listed, bundle, notice] = await Promise.all([client.coins(address), client.withdrawalBundle(), client.withdrawalNotice()]);
+      const [listed, bundle, notice, history] = await Promise.all([client.coins(address), client.withdrawalBundle(), client.withdrawalNotice(), client.coinHistory(address)]);
+      /** How far the node says each withdrawal request of the address has got, by its coin. */
+      const progress = new Map((history ?? []).flatMap((e) => (e.withdrawal && e.txid ? [[outpointKey({ Regular: { txid: e.txid, vout: e.withdrawal.vout } }), e.withdrawal.progress] as const] : [])));
       const held = await heldOutpoints(target.chain, listed);
       let balance = 0n;
       let heldSats = 0n;
@@ -325,8 +329,11 @@ export function createSidepotCoins(deps: SidepotCoinsDeps) {
       });
       // Then the wallet's own requests the server doesn't list (any more, or yet).
       const made = await changeList<MadeWithdrawal>(madeKey(target.chain), (all) => (all.some((m) => !m.seen && requests.has(m.id)) ? all.map((m) => (requests.has(m.id) ? { ...m, seen: true } : m)) : all));
+      const paid = made.filter((m) => !requests.has(m.id) && progress.get(m.id) === "paid").map((m) => m.id);
+      // A request the node says was paid has nothing left to wait for: it shows in the history, and its record goes.
+      if (paid.length > 0) await changeList<MadeWithdrawal>(madeKey(target.chain), (all) => all.filter((m) => !paid.includes(m.id)));
       for (const { id, amount, mainFee, mainAddress, height, seen } of made) {
-        if (requests.has(id)) continue;
+        if (requests.has(id) || paid.includes(id)) continue;
         const status: WithdrawalStatus = seen ? "handedOver" : listed.height < height + HOLD_BLOCKS ? "sent" : "unlisted";
         withdrawals.push({ id, amount, mainFee, mainAddress, status, ...(status === "sent" ? {} : { forgettable: true as const }) });
       }
@@ -340,6 +347,7 @@ export function createSidepotCoins(deps: SidepotCoinsDeps) {
         held: heldSats.toString(),
         withdrawals,
         fee: SIDEPOT_COIN_FEE,
+        ...(history === undefined ? {} : { history: history.slice(0, 50) }),
         ...(notice === undefined ? {} : { withdrawalNotice: notice }),
         readAt: deps.now(),
       };

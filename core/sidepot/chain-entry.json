@@ -12,7 +12,7 @@
       "sidechainServer": { "api": "sidepot", "url": "https://sidepot.cash/api" },
       "officialApps": ["https://sidepot.cash"],
       "assets": [
-        { "id": "", "ticker": "ECX", "name": "eCash in Sidepot", "decimals": 8, "ecx": true }
+        { "id": "", "ticker": "ECX", "name": "eCash in game account", "decimals": 8, "ecx": true }
       ],
       "params": {
         "anchor": { "height": 982723, "hash": "0000000000000000019340956c9c00140207ee2ad5c683894a51bbe072bbbf33" },
@@ -29,7 +29,7 @@
       "sidechainServer": { "api": "sidepot", "url": "/sidepot-api" },
       "officialApps": ["https://regtest.sidepot.cash"],
       "assets": [
-        { "id": "", "ticker": "ECX", "name": "eCash in Sidepot", "decimals": 8, "ecx": true }
+        { "id": "", "ticker": "ECX", "name": "eCash in game account", "decimals": 8, "ecx": true }
       ],
       "params": {
         "anchor": { "height": 105, "hash": "528874dacc090b789007a4ff6016b9427c93f58d717f0e09962a98e126098ca8" },

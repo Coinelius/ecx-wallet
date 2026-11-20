@@ -19,6 +19,25 @@
 
   const sats = (amount: string) => amountText(amount, "", info.assets);
   const readAt = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  /** When a history entry's block was mined, as a short date and time. */
+  const minedAt = (seconds: number) => new Date(seconds * 1000).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  type CoinEvent = NonNullable<SidepotCoinsReport["history"]>[number];
+  /** What a history entry was, in words. */
+  function eventTitle(e: CoinEvent): string {
+    if (e.kind === "cashout") return "Cashed out from the game";
+    if (e.kind === "deposit") return "Deposit from the main chain";
+    if (e.kind === "withdrawal") return "Withdrawal request";
+    return e.amount.startsWith("-") ? "Sent" : "Received";
+  }
+  /** How far a history entry's withdrawal request has got, by the node's account of its bundle. */
+  const PROGRESS = {
+    waiting: "Waiting for a withdrawal bundle.",
+    voting: "Its bundle is with the main chain's miners.",
+    paid: "Paid on the main chain.",
+    failed: "Its bundle failed. It waits for the next one.",
+  };
+  /** A signed amount of sats, with its sign in front. */
+  const signed = (amount: string) => (amount.startsWith("-") ? `-${sats(amount.slice(1))}` : `+${sats(amount)}`);
 
   /** The last report read, kept on show while the next is read. */
   let last: SidepotCoinsReport | undefined;
@@ -138,6 +157,31 @@
     </div>
   {/if}
 
+  {#if report?.history && report.history.length > 0}
+    <div class="stack" data-coins-history>
+      <h3>Coin activity</h3>
+      <ul class="stack">
+        {#each report.history as e (e.id)}
+          <li class="event" data-coins-event={e.kind}>
+            <span class="event-line">
+              <span>{eventTitle(e)}</span>
+              <strong class:out={e.amount.startsWith("-")} data-event-amount>{signed(e.amount)}</strong>
+            </span>
+            {#if e.withdrawal}
+              <span class="muted tiny" data-event-withdrawal={e.withdrawal.progress}>
+                {sats(e.withdrawal.amount)} to {e.withdrawal.mainAddress}. {PROGRESS[e.withdrawal.progress]}
+              </span>
+            {/if}
+            <span class="muted tiny">
+              {e.time !== undefined ? minedAt(e.time) : e.height !== undefined ? `${info.name} block ${e.height}` : "In a block"}{#if e.txid}
+                , <code class="tiny">{e.txid.slice(0, 10)}…{e.txid.slice(-6)}</code>{/if}
+            </span>
+          </li>
+        {/each}
+      </ul>
+    </div>
+  {/if}
+
   {#if report}
     <p class="reported" data-coins-reported-by>Reported by {report.server}. This wallet doesn't verify it.</p>
   {/if}
@@ -165,6 +209,20 @@
 {/if}
 
 <style>
+  .event {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .event-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .event-line strong {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
   .coins {
     margin-top: 4px;
   }

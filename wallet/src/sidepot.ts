@@ -54,6 +54,33 @@ export interface SidepotCoins {
   coins: SidepotCoin[];
 }
 
+/**
+ * One thing that happened to an address's coins, as the server reports it: a Sidepot transaction, or
+ * a coin a block or a Deposit made. Unverified by the wallet.
+ */
+export interface SidepotCoinEvent {
+  id: string;
+  /** `cashout`: a coin a Sidepot block made for the address (a cashout from the game). */
+  kind: "cashout" | "deposit" | "transfer" | "withdrawal";
+  txid?: string;
+  /** The address's net change, sats, as a signed decimal string. */
+  amount: string;
+  /** The Sidepot block it is in, and when that block's eCash block was mined (seconds since the epoch). */
+  height?: number;
+  time?: number;
+  /** A withdrawal request it made, and how far that has got (`WithdrawalProgress`). */
+  withdrawal?: { amount: string; mainFee: string; mainAddress: string; vout: number; progress: WithdrawalProgress };
+}
+
+/**
+ * How far a withdrawal request has got, by the node's own account of its bundle: `waiting` for a
+ * bundle; `voting`, its bundle is with the main chain's miners; `paid`, the main chain paid the
+ * bundle; `failed`, the bundle failed and the request waits for another.
+ */
+export type WithdrawalProgress = "waiting" | "voting" | "paid" | "failed";
+
+const PROGRESS: Record<string, WithdrawalProgress> = { waiting: "waiting", pending: "waiting", submitted: "voting", submittedunexpected: "voting", confirmed: "paid", failed: "failed", dropped: "failed" };
+
 export type SidepotClient = ReturnType<typeof sidepotClient>;
 
 const isCount = (n: unknown): n is number => typeof n === "number" && Number.isSafeInteger(n) && n >= 0;
@@ -173,6 +200,38 @@ export function sidepotClient(baseUrl: string, fetchFn: Fetch = (...args) => fet
      * The withdrawal requests the chain's pending withdrawal bundle pays, as the coins they were:
      * the bundle is what the main chain's miners are voting on. Empty if no bundle is pending.
      */
+    /**
+     * What happened to `address`'s coins, newest first. Undefined if the server doesn't keep
+     * histories or its answer can't be read: the balance never depends on it.
+     */
+    async coinHistory(address: string): Promise<SidepotCoinEvent[] | undefined> {
+      try {
+        const { entries } = ((await get(`/coin-history/${address}`, "coin history")) ?? {}) as Record<string, unknown>;
+        if (!Array.isArray(entries)) return undefined;
+        const kinds = ["cashout", "deposit", "transfer", "withdrawal"];
+        return entries.flatMap((raw): SidepotCoinEvent[] => {
+          const e = (raw !== null && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+          if (typeof e.id !== "string" || !kinds.includes(e.kind as string) || typeof e.amount !== "number" || !Number.isSafeInteger(e.amount)) return [];
+          const w = (e.withdrawal !== null && typeof e.withdrawal === "object" ? e.withdrawal : undefined) as Record<string, unknown> | undefined;
+          const withdrawal =
+            w !== undefined && isCount(w.value) && isCount(w.main_fee) && typeof w.main_address === "string" && isCount(w.vout)
+              ? { amount: String(w.value), mainFee: String(w.main_fee), mainAddress: w.main_address, vout: w.vout, progress: PROGRESS[String(w.status)] ?? "waiting" }
+              : undefined;
+          return [{
+            id: e.id,
+            kind: e.kind as SidepotCoinEvent["kind"],
+            ...(isTxid(e.txid) ? { txid: e.txid } : {}),
+            amount: String(e.amount),
+            ...(isCount(e.height) ? { height: e.height } : {}),
+            ...(isCount(e.time) ? { time: e.time } : {}),
+            ...(withdrawal === undefined ? {} : { withdrawal }),
+          }];
+        });
+      } catch {
+        return undefined;
+      }
+    },
+
     /**
      * What the chain's operator wants said before a withdrawal request, such as when the next bundle
      * is planned. Plain text, at most 600 characters; undefined if the server has none or doesn't
