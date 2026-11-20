@@ -37,6 +37,8 @@
     prefilled = true;
     mainFee = unit.value === "sats" ? "1000" : "0.00001";
   });
+  /** The user has ticked that they read what a withdrawal means: nothing is built before that. */
+  let understood = $state(false);
   let busy = $state(false);
   /** The approval of this screen's own request, shown in place of the form while it waits. */
   let approvalId = $state<string | null>(null);
@@ -178,10 +180,28 @@
           <Icon name="warning" />
           <span>
             A withdrawal is slow, and it depends on the main chain's miners. {name} gathers waiting withdrawals into a bundle, and the
-            miners vote on that bundle block by block, for months, before the main chain pays it. If they don't approve it, nothing is
-            paid and the withdrawal waits for the next bundle. Once requested, it can't be cancelled or spent.
+            miners vote on that bundle block by block, for a long time, before the main chain pays it. If they don't approve it, nothing
+            is paid and the withdrawal waits for the next bundle.
           </span>
         </p>
+        <div class="card disclaimer" data-coins-withdraw-disclaimer>
+          <strong>Before you ask for a withdrawal</strong>
+          <ul>
+            <li>It can't be cancelled. From the moment you ask, the amount and its main-chain fee are set aside: you can't spend them, send them or put them back in the game.</li>
+            <li>Nobody can say when it will be paid, or promise that it will be. It is paid only when a bundle that includes it wins the miners' vote on the main chain.</li>
+            <li>A wrong main-chain address can't be corrected afterwards.</li>
+          </ul>
+          {#if report?.withdrawalNotice}
+            <p class="operator" data-coins-withdraw-notice>
+              <span class="muted small">From {name}'s operator, by way of {report.server}:</span>
+              {report.withdrawalNotice}
+            </p>
+          {/if}
+          <label class="agree">
+            <input type="checkbox" bind:checked={understood} data-coins-understood />
+            <span>I understand, and I want to ask for this withdrawal.</span>
+          </label>
+        </div>
       {:else}
         <p class="notice" data-coins-send-note>
           <Icon name="warning" />
@@ -194,7 +214,7 @@
       <p class="reported">
         This wallet builds the transaction from your own coins. You review exactly what it built before anything is signed.
       </p>
-      <button class="primary block" type="submit" disabled={busy || to.trim() === "" || amount.trim() === ""} data-coins-submit>
+      <button class="primary block" type="submit" disabled={busy || to.trim() === "" || amount.trim() === "" || (withdrawing && !understood)} data-coins-submit>
         {withdrawing ? "Review withdrawal" : "Review and send"}
       </button>
     </form>
@@ -208,6 +228,35 @@
 {/if}
 
 <style>
+  .disclaimer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .disclaimer ul {
+    margin: 0;
+    padding-left: 1.1rem;
+    list-style: disc;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .operator {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .agree {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .agree input {
+    width: auto;
+    margin-top: 3px;
+  }
   .amount {
     font-size: 1.6rem;
   }

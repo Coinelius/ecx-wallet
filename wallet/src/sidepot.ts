@@ -173,6 +173,20 @@ export function sidepotClient(baseUrl: string, fetchFn: Fetch = (...args) => fet
      * The withdrawal requests the chain's pending withdrawal bundle pays, as the coins they were:
      * the bundle is what the main chain's miners are voting on. Empty if no bundle is pending.
      */
+    /**
+     * What the chain's operator wants said before a withdrawal request, such as when the next bundle
+     * is planned. Plain text, at most 600 characters; undefined if the server has none or doesn't
+     * answer the question. Reported, like everything else here.
+     */
+    async withdrawalNotice(): Promise<string | undefined> {
+      try {
+        const { notice } = ((await get("/withdrawal-notice", "withdrawal notice")) ?? {}) as Record<string, unknown>;
+        return typeof notice === "string" && notice.trim() !== "" ? notice.trim().slice(0, 600) : undefined;
+      } catch {
+        return undefined;
+      }
+    },
+
     async withdrawalBundle(): Promise<SidepotCoin[]> {
       const bundle = await get("/withdrawal-bundle", "withdrawal bundle");
       if (bundle === null) return [];

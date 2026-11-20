@@ -80,6 +80,8 @@ export interface SidepotCoinsReport {
   withdrawals: WaitingWithdrawal[];
   /** Sidepot's fee for a spend, sats. */
   fee: string;
+  /** What the chain's operator says about withdrawals, such as when the next bundle is planned. The server's words. */
+  withdrawalNotice?: string;
   /** When the server reported it, in milliseconds since the epoch. */
   readAt: number;
 }
@@ -304,7 +306,7 @@ export function createSidepotCoins(deps: SidepotCoinsDeps) {
       const target = await coinsChain(slot);
       const { client } = target;
       const { address } = target.module.coinAddress(await target.key());
-      const [listed, bundle] = await Promise.all([client.coins(address), client.withdrawalBundle()]);
+      const [listed, bundle, notice] = await Promise.all([client.coins(address), client.withdrawalBundle(), client.withdrawalNotice()]);
       const held = await heldOutpoints(target.chain, listed);
       let balance = 0n;
       let heldSats = 0n;
@@ -338,6 +340,7 @@ export function createSidepotCoins(deps: SidepotCoinsDeps) {
         held: heldSats.toString(),
         withdrawals,
         fee: SIDEPOT_COIN_FEE,
+        ...(notice === undefined ? {} : { withdrawalNotice: notice }),
         readAt: deps.now(),
       };
     },

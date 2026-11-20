@@ -59,7 +59,7 @@
     waiting: `Waiting for ${info.name} to put it in a withdrawal bundle.`,
     bundled: `In ${info.name}'s next withdrawal bundle, which hasn't gone to the main chain yet.`,
     handedOver:
-      `${info.name}'s server no longer lists it, so its bundle has gone to the main chain. The miners' vote on a bundle takes months, and this wallet ` +
+      `${info.name}'s server no longer lists it, so its bundle has gone to the main chain. The miners' vote on a bundle takes a long time, and this wallet ` +
       "can't follow it or see the payment. If the bundle fails, the withdrawal shows as waiting again.",
     unlisted: `${info.name}'s server never listed it, so it may not have been included. If your coins are back in your balance, nothing was withdrawn.`,
   });
@@ -132,7 +132,7 @@
         {/each}
       </ul>
       <p class="muted tiny">
-        A withdrawal takes months, and the main chain's miners decide whether its bundle is paid. This wallet can show it only while
+        A withdrawal takes a long time, and the main chain's miners decide whether its bundle is paid. This wallet can show it only while
         {info.name}'s server lists it.
       </p>
     </div>
