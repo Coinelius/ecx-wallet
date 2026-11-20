@@ -15,7 +15,8 @@
         { "id": "", "ticker": "ECX", "name": "eCash in Sidepot", "decimals": 8, "ecx": true }
       ],
       "params": {
-        "anchor": { "height": 982723, "hash": "0000000000000000019340956c9c00140207ee2ad5c683894a51bbe072bbbf33" }
+        "anchor": { "height": 982723, "hash": "0000000000000000019340956c9c00140207ee2ad5c683894a51bbe072bbbf33" },
+        "parentAddressParams": { "p2pkhPrefix": 0, "p2shPrefix": 5, "bechHrp": "bc" }
       }
     },
     "regtest": {
@@ -31,7 +32,8 @@
         { "id": "", "ticker": "ECX", "name": "eCash in Sidepot", "decimals": 8, "ecx": true }
       ],
       "params": {
-        "anchor": { "height": 105, "hash": "528874dacc090b789007a4ff6016b9427c93f58d717f0e09962a98e126098ca8" }
+        "anchor": { "height": 105, "hash": "528874dacc090b789007a4ff6016b9427c93f58d717f0e09962a98e126098ca8" },
+        "parentAddressParams": { "p2pkhPrefix": 111, "p2shPrefix": 196, "bechHrp": "bcrt" }
       }
     }
   }
