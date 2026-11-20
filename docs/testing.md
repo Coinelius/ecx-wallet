@@ -42,7 +42,7 @@ The shipped build is mainnet's and reads public explorers, which tests can't con
 
 ### The regtest build
 
-`ECX_NETWORK=regtest pnpm build:web` (Sidepot's test chain: the main chain and Slot 88, ADR 0021) has no browser tests yet. The Rust tests cover `sidepot.wasm`'s entries and `l1.wasm`'s data transactions (`core/sidepot/tests`, `core/l1/tests/data.rs`), and `web-host.test` checks what that build bundles and that its servers, paths on the wallet's own origin, add no CSP origin. Its Chain Entries aren't swapped for stubs: the e2e build is betanet's.
+`ECX_NETWORK=regtest pnpm build:web` (Sidepot's test chain: the main chain and Slot 88, ADR 0021) has no browser tests yet. The Rust tests cover `sidepot.wasm`'s entries and `l1.wasm`'s data transactions (`core/sidepot/tests`, `core/l1/tests/data.rs`), and `sidepot.wasm`'s Sidepot coins against fixtures written and checked by the Sidepot node's own code (`core/sidepot/tests/coins.rs`; `core/sidepot/thunder-vectors/README.md` says how to write them again; ADR 0022), and `web-host.test` checks what that build bundles and that its servers, paths on the wallet's own origin, add no CSP origin. Its Chain Entries aren't swapped for stubs: the e2e build is betanet's.
 
 ### The web e2e build
 
