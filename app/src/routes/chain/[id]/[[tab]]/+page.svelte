@@ -7,6 +7,7 @@
   import { chainMark, Chains } from "$lib/chains.svelte";
   import ActivityFeed from "$lib/ActivityFeed.svelte";
   import Icon from "$lib/Icon.svelte";
+  import SidepotCoins from "$lib/SidepotCoins.svelte";
   import type { Tab } from "$lib/nav.svelte";
   import { amountText, unit } from "$lib/unit.svelte";
   import { stalledText } from "$lib/stall";
@@ -87,6 +88,10 @@
 
     <div class="panel" role="tabpanel" hidden={tab !== "assets"} data-account={view.info.id} data-refreshing={view.shown.refreshing ? "" : undefined}>
       <AssetRows {view} onretry={() => chains.retry(id)} onreceive={() => actions?.receive(id)} />
+      {#if view.info.coins && typeof id === "number"}
+        <!-- The wallet's own coins on the chain, apart from its game account's balance (Sidepot, docs/adr/0022). -->
+        <SidepotCoins slot={id} info={view.info} />
+      {/if}
       {#if view.shown.report}
         <p class="reported" data-reported-by>Reported by {view.shown.report.server}. This wallet doesn't verify it.</p>
       {/if}
