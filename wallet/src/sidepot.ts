@@ -4,12 +4,18 @@
 //   GET <url>/state            the game: round, price, pot, clock, and the eCash height it has read
 //   GET <url>/account/<player> a game account: { balance_sats, keys, nonce }, or null if it has none
 //
-// It reports a balance and nothing else: the account's moves are entries in eCash transactions,
-// which go out over eCash's own server (send.ts), and a Deposit's M5 is eCash's too. There is no
-// identity check: the API has no block to ask for. What binds the wallet's entries to one Sidepot
-// is their signature (the anchor block and the Slot), and eCash's own server passes the check for
-// the chain the game is read from.
-import { NATIVE_COIN } from "./chain-module";
+// Of the game it reports a balance and nothing else: the account's moves are entries in eCash
+// transactions, which go out over eCash's own server (send.ts), and a Deposit's M5 is eCash's too.
+// There is no identity check: the API has no block to ask for. What binds the wallet's entries to
+// one Sidepot is their signature (the anchor block and the Slot), and eCash's own server passes
+// the check for the chain the game is read from.
+//
+// The Sidepot sidechain's ordinary coins (docs/adr/0022, sidepot-coins.ts) are read and spent here too:
+//
+//   GET  <url>/coins/<address>      { height, coins }: the address's coins, as the node's list_utxos lists them
+//   POST <url>/tx                   a signed transaction (the node's Authorized<Transaction>, JSON) → { txid }
+//   GET  <url>/withdrawal-bundle    the withdrawal bundle the chain is waiting on, or null
+import { NATIVE_COIN, type SidepotCoin, type SidepotContent, type SidepotOutPoint } from "./chain-module";
 import { serverFetch, SidechainServerError, type Fetch, type SidechainServer } from "./sidechain-server";
 
 /** The game's state, as its server reports it. Unverified by the wallet. */
@@ -41,9 +47,54 @@ export interface SidepotAccount {
   nonce: number;
 }
 
+/** An address's coins on the Sidepot sidechain, as the server reports them. Unverified by the wallet. */
+export interface SidepotCoins {
+  /** The Sidepot sidechain's height when they were listed. */
+  height: number;
+  coins: SidepotCoin[];
+}
+
 export type SidepotClient = ReturnType<typeof sidepotClient>;
 
 const isCount = (n: unknown): n is number => typeof n === "number" && Number.isSafeInteger(n) && n >= 0;
+
+/** A Sidepot address as its node writes one: base58 of 20 bytes, 20 to 28 characters. */
+export const isSidepotAddress = (text: string) => /^[1-9A-HJ-NP-Za-km-z]{20,28}$/.test(text);
+
+const isTxid = (t: unknown): t is string => typeof t === "string" && /^[0-9a-f]{64}$/.test(t);
+
+function isOutPoint(o: unknown): o is SidepotOutPoint {
+  if (o === null || typeof o !== "object") return false;
+  const entries = Object.entries(o);
+  if (entries.length !== 1) return false;
+  const [kind, body] = entries[0] as [string, unknown];
+  if (kind === "Deposit") return typeof body === "string" && /^[0-9a-f]{64}:(0|[1-9][0-9]{0,9})$/.test(body);
+  const { txid, vout } = (body !== null && typeof body === "object" ? body : {}) as Record<string, unknown>;
+  return (kind === "Regular" || kind === "Coinbase") && isTxid(txid) && isCount(vout);
+}
+
+function isContent(c: unknown): c is SidepotContent {
+  if (c === null || typeof c !== "object") return false;
+  const { Value: value, Withdrawal: withdrawal } = c as Record<string, unknown>;
+  if (Object.keys(c).length !== 1) return false;
+  if (value !== undefined) return isCount(value);
+  const { value: paid, main_fee, main_address } = (withdrawal !== null && typeof withdrawal === "object" ? withdrawal : {}) as Record<string, unknown>;
+  return isCount(paid) && isCount(main_fee) && typeof main_address === "string";
+}
+
+/** True if `c` has the shape of a coin the node lists. The Sidepot module reads one strictly before it spends it. */
+export function isSidepotCoin(c: unknown): c is SidepotCoin {
+  const { outpoint, output } = (c !== null && typeof c === "object" ? c : {}) as Record<string, unknown>;
+  const { address, content } = (output !== null && typeof output === "object" ? output : {}) as Record<string, unknown>;
+  return isOutPoint(outpoint) && typeof address === "string" && isSidepotAddress(address) && isContent(content);
+}
+
+/** A coin's outpoint as one line of text: what tells two coins apart. */
+export function outpointKey(outpoint: SidepotOutPoint): string {
+  if ("Deposit" in outpoint) return `deposit:${outpoint.Deposit}`;
+  const [kind, { txid, vout }] = "Regular" in outpoint ? (["regular", outpoint.Regular] as const) : (["coinbase", outpoint.Coinbase] as const);
+  return `${kind}:${txid}:${vout}`;
+}
 
 export function sidepotClient(baseUrl: string, fetchFn: Fetch = (...args) => fetch(...args)) {
   const url = baseUrl.replace(/\/+$/, "");
@@ -89,6 +140,50 @@ export function sidepotClient(baseUrl: string, fetchFn: Fetch = (...args) => fet
       const { balance_sats, keys, nonce } = (typeof a === "object" ? a : {}) as Record<string, unknown>;
       if (!isCount(balance_sats) || !isCount(keys) || !isCount(nonce)) throw malformed("account");
       return { balance: String(balance_sats), keys, nonce };
+    },
+
+    /** The coins the Sidepot sidechain holds at `address` (base58), with the chain's height. */
+    async coins(address: string): Promise<SidepotCoins> {
+      if (!isSidepotAddress(address)) throw new Error(`${address} isn't a Sidepot address.`);
+      const answer = ((await get(`/coins/${address}`, "list of coins")) ?? {}) as Record<string, unknown>;
+      const { height, coins } = answer;
+      // A coin listed under another address isn't this address's, whatever the server says.
+      if (!isCount(height) || !Array.isArray(coins) || !coins.every((c) => isSidepotCoin(c) && c.output.address === address)) throw malformed("list of coins");
+      return { height, coins };
+    },
+
+    /**
+     * Hands the node a signed transaction (`tx`: its `Authorized<Transaction>`, JSON). Answers the
+     * txid the node knows it by; a refusal carries the node's own words.
+     */
+    async submit(tx: string): Promise<string> {
+      const answer = await serverFetch(fetchFn, url, "/tx", { method: "POST", headers: { "Content-Type": "application/json" }, body: tx });
+      if (!answer.ok) {
+        const said = (await answer.text().catch(() => "")).trim().slice(0, 300);
+        // The server passes its node's JSON-RPC error on as text: the node's own message is what says why.
+        const reason = (/["']message["']:\s*["'](.+?)["']\s*\}?$/.exec(said)?.[1] ?? said).replace(/\.$/, "");
+        throw new SidechainServerError(url, `The Sidechain Server at ${url} refused the transaction: ${reason || `HTTP ${answer.status}`}.`);
+      }
+      const { txid } = ((await answer.json().catch(() => null)) ?? {}) as Record<string, unknown>;
+      if (!isTxid(txid)) throw malformed("answer to a transaction");
+      return txid;
+    },
+
+    /**
+     * The withdrawal requests the chain's pending withdrawal bundle pays, as the coins they were:
+     * the bundle is what the main chain's miners are voting on. Empty if no bundle is pending.
+     */
+    async withdrawalBundle(): Promise<SidepotCoin[]> {
+      const bundle = await get("/withdrawal-bundle", "withdrawal bundle");
+      if (bundle === null) return [];
+      const { spend_utxos } = (typeof bundle === "object" ? bundle : {}) as Record<string, unknown>;
+      if (!Array.isArray(spend_utxos)) throw malformed("withdrawal bundle");
+      return spend_utxos.map((pair) => {
+        const [outpoint, output] = Array.isArray(pair) ? pair : [];
+        const coin = { outpoint, output };
+        if (!isSidepotCoin(coin)) throw malformed("withdrawal bundle");
+        return coin;
+      });
     },
   };
 }
