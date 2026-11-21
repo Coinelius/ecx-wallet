@@ -67,6 +67,26 @@ fn withdrawal(address: Address, value: u64, main_fee: u64, main_address: &str) -
     }
 }
 
+/// A game deposit (the node's `OutputContent::GameDeposit`, from commit 824e49c): `value` sats into the
+/// game account `account`, at the address of all zeros, as the node requires.
+fn game_deposit(account: [u8; 32], value: u64) -> Output {
+    Output { address: Address::ALL_ZEROS, content: OutputContent::GameDeposit { value: Amount::from_sat(value), account } }
+}
+
+/// Game accounts (BIP340 x-only keys): the wallet's test Starter's own (`abandon … about`, at
+/// `m/300'/88'/0'`), secp256k1's generator, and another valid key.
+const GAME_ACCOUNTS: [&str; 3] = [
+    "0f2ffb3eef6d464fc93b8132a3d95da4b3fb7db57a4dfda30dca200e1137fb5b",
+    "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+    "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5",
+];
+
+fn account(i: usize) -> [u8; 32] {
+    let mut out = [0; 32];
+    const_hex::decode_to_slice(GAME_ACCOUNTS[i], &mut out).expect("64 hex digits");
+    out
+}
+
 /// Main-chain addresses of every kind a withdrawal may name, on regtest and on mainnet.
 const MAIN_ADDRESSES: [&str; 10] = [
     "bcrt1qw508d6qejxtdg4y5r3zarvary0c5xw7kygt080",
@@ -177,6 +197,34 @@ fn generate() -> anyhow::Result<serde_json::Value> {
         authorized.push(serde_json::json!({ "json": serde_json::to_value(&signed)?, "address": me.to_string(), "txid": tx.txid().to_string() }));
     }
 
+    // Game deposits (docs/adr/0023): the outputs alone, transactions that make them (with change, beside a
+    // transfer, and of a coin's whole value), and the same transactions signed as the node's wallet signs them.
+    let deposits = vec![game_deposit(account(0), 1), game_deposit(account(0), 500_000), game_deposit(account(1), u64::MAX), game_deposit(account(2), 2_100_000_000_000_000)];
+    let deposits_json = deposits
+        .iter()
+        .map(|output| Ok(serde_json::json!({ "json": serde_json::to_value(output)?, "borsh": hex(borsh::to_vec(output)?) })))
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    let deposit_transactions = vec![
+        spend(&coins[0..1], vec![game_deposit(account(0), 500_000), value(me, 1_499_000)]),
+        spend(&[coins[2].clone(), coins[4].clone()], vec![value(other, 1_000_000), game_deposit(account(1), 2_000_000), value(me, 49_999_000)]),
+        spend(&coins[4..5], vec![game_deposit(account(0), 4_999_000)]),
+    ];
+    let mut deposit_transactions_json = vec![];
+    for (i, tx) in deposit_transactions.iter().enumerate() {
+        let signers: Vec<_> = tx.inputs.iter().map(|_| (me, &keys[0].1)).collect();
+        let signed = authorization::authorize(rng(&format!("authorize game deposit {i}")), &signers, tx.clone())?;
+        authorization::verify_authorized_transaction(&context, &signed)?;
+        let inputs = tx.inputs.iter().map(|(outpoint, hash)| Ok(serde_json::json!({ "outpoint": serde_json::to_value(outpoint)?, "hash": hex(hash) }))).collect::<anyhow::Result<Vec<_>>>()?;
+        deposit_transactions_json.push(serde_json::json!({
+            "json": serde_json::to_value(tx)?,
+            "borsh": hex(tx.canonical_bytes()?),
+            "txid": tx.txid().to_string(),
+            "inputs": inputs,
+            "authorized": serde_json::to_value(&signed)?,
+            "address": me.to_string(),
+        }));
+    }
+
     Ok(serde_json::json!({
         "source": "thunder_types (the Sidepot node, branch sidepot), by core/sidepot/thunder-vectors",
         "keys": keys_json,
@@ -184,6 +232,7 @@ fn generate() -> anyhow::Result<serde_json::Value> {
         "transactions": transactions_json,
         "signatures": signatures,
         "authorized": authorized,
+        "gameDeposits": { "outputs": deposits_json, "transactions": deposit_transactions_json },
     }))
 }
 

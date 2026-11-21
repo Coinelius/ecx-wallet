@@ -796,7 +796,7 @@ export function createRouter<Sender>(host: RouterHost<Sender>) {
         await sidepotCoins.forgetWithdrawal(supportedSlot(message.slot), String(message.id ?? ""));
         return null;
       case "coins.spend":
-        // A transfer or a withdrawal request from those coins: resolves once Sidepot's node took it.
+        // A transfer, a withdrawal request or a move into the game account from those coins: resolves once Sidepot's node took it.
         if (!host.requester(sender).walletPage) throw new ProviderRpcError(ErrorCode.Unauthorized, "Unknown requester.");
         {
           const slot = await onSlot(message.slot);

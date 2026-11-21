@@ -1,10 +1,11 @@
 //! Ordinary Sidepot coins (docs/adr/0022). Besides its game accounts, the Sidepot sidechain has
 //! coins held by 20-byte addresses: a game cashout arrives as one, and only a coin can ask for a
-//! withdrawal to the main chain. This is the wallet's address there, and its two spends:
+//! withdrawal to the main chain. This is the wallet's address there, and its three spends:
 //!
 //! - [`coin_address`] turns the Slot's Starter into the wallet's one Sidepot address;
-//! - [`build_spend`] builds, unsigned, a transfer to another Sidepot address or a withdrawal request
-//!   to a main-chain address, from the coins a server lists, with change back to the same address;
+//! - [`build_spend`] builds, unsigned, a transfer to another Sidepot address, a withdrawal request
+//!   to a main-chain address, or a move into a game account (the node's `GameDeposit` output,
+//!   docs/adr/0023), from the coins a server lists, with change back to the same address;
 //! - [`decode_spend`] says what such a spend does, checked from its own bytes, for the approval;
 //! - [`sign_spend`] checks it the same way, then signs it as the node takes it.
 //!
@@ -16,14 +17,14 @@ use std::str::FromStr;
 use bech32::Hrp;
 use bitcoin::bip32::{DerivationPath, Xpriv};
 use bitcoin::hashes::Hash;
-use bitcoin::secp256k1::Secp256k1;
+use bitcoin::secp256k1::{Secp256k1, XOnlyPublicKey};
 use bitcoin::{NetworkKind, ScriptBuf, WitnessProgram, WitnessVersion};
 use curve25519_dalek::scalar::Scalar;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::thunder::{authorized_json, node_script, verify, Address, Authorization, Content, OutPoint, Output, PointedOutput, SigningKey, Transaction};
-use crate::{hex, network, refuse, Refusal, RefusalCode};
+use crate::{hex, network, refuse, Refusal, RefusalCode, ACCOUNT_PREFIX};
 
 /// Where the coin key's seed sits under the Starter's BIP39 seed (no passphrase): beside the game
 /// account (`ACCOUNT_PATH`, account 0), at account 1, hardened. The path is the same on every network.
@@ -126,6 +127,9 @@ pub enum Payment {
     /// A request to withdraw `amount` sats to the main-chain address `main_address`, with
     /// `main_fee` sats more for the main chain's miners.
     Withdrawal { main_address: String, amount: String, main_fee: String },
+    /// `amount` sats moved into the Starter's own game account (docs/adr/0023). The wallet builds
+    /// no move into anyone else's: a payload that names another is decoded as not yours.
+    Game { amount: String },
 }
 
 /// A spend `build_spend` built.
@@ -210,6 +214,12 @@ pub fn main_address(script: &[u8]) -> Option<String> {
     }
 }
 
+/// True if `account` is a key a game account can have: an x-only (BIP340) public key. The node
+/// refuses a game deposit to anything else, since nobody could ever sign for it.
+fn is_game_account(account: &[u8; 32]) -> bool {
+    XOnlyPublicKey::from_slice(account).is_ok()
+}
+
 /// Bitcoin Core's `GetDustThreshold` at its `DUST_RELAY_TX_FEE` for an output paying `script`:
 /// what it costs to spend, rounded up (546 sats for P2PKH, 294 for P2WPKH).
 fn dust_threshold(script: &ScriptBuf) -> u64 {
@@ -250,6 +260,15 @@ pub fn build_spend(order_json: &str, starter: &str) -> Result<BuiltSpend, Refusa
             // The request stays the wallet's own on Sidepot until the chain bundles it.
             let main_address = main_address(script.as_bytes()).expect("a script main_script made");
             Output { address: me, content: Content::Withdrawal { value, main_fee, main_address, script: script.into_bytes() } }
+        }
+        Payment::Game { amount } => {
+            let value = sats(amount, "The amount")?;
+            let account = crate::own_account(starter).map_err(|e| refuse(RefusalCode::InvalidStarter, e))?;
+            if value == 0 {
+                return Err(malformed("The amount to move into the game must be more than 0."));
+            }
+            // No coin, and nobody's to hold: the node takes it only at the address of all zeros.
+            Output { address: Address::ALL_ZEROS, content: Content::GameDeposit { value, account } }
         }
     };
     let overflow = || malformed("The amounts are more ECX than exists.");
@@ -352,6 +371,10 @@ pub enum Destination {
     /// A withdrawal request: `payout` sats to `l1_address` on the main chain (`l1_script_pubkey`,
     /// hex, is its script), `parent_fee` sats to the main chain's miners.
     Withdrawal { l1_address: String, l1_script_pubkey: String, payout: String, parent_fee: String },
+    /// A game account (docs/adr/0023): the output's sats are credited to it, and are no coin from
+    /// then on. `account` is its x-only key, hex; `address` the account as the wallet writes one,
+    /// `spot:<key>`; `yours` if it is the Starter's own game account.
+    GameAccount { account: String, address: String, yours: bool },
 }
 
 /// `decode_spend`'s answer: always a Clear View, or a refusal.
@@ -363,8 +386,10 @@ pub enum Decoded {
 
 /// Reads an unsigned spend and checks it from its own bytes: every input spends one of the coins
 /// given, by that coin's hash; every coin is a plain coin of the Starter's address, spent once; a
-/// withdrawal pays a main-chain address of this network; and the inputs cover the outputs.
-fn read(payload: &str, key: &CoinKey) -> Result<(Transaction, SpendView), Refusal> {
+/// withdrawal pays a main-chain address of this network; a move into the game is one the node
+/// takes (above zero, to a real account, at the address of all zeros), marked as the Starter's own
+/// account (`my_account`) or not; and the inputs cover the outputs.
+fn read(payload: &str, key: &CoinKey, my_account: &[u8; 32]) -> Result<(Transaction, SpendView), Refusal> {
     let value: Value = serde_json::from_str(payload).map_err(|e| malformed(format!("Not a Sidepot spend: {e}")))?;
     let fields = value.as_object().filter(|o| o.len() == 2).ok_or_else(|| malformed("Not a Sidepot spend."))?;
     let (Some(transaction), Some(coins)) = (fields.get("transaction"), fields.get("coins").and_then(Value::as_array)) else {
@@ -392,8 +417,10 @@ fn read(payload: &str, key: &CoinKey) -> Result<(Transaction, SpendView), Refusa
             return Err(malformed(format!("Input {index} spends a coin another input already spends.")));
         }
         seen.push(*outpoint);
-        let Content::Value(value) = coin.output.content else {
-            return Err(malformed(format!("Input {index} spends a withdrawal request, which no one can spend.")));
+        let value = match coin.output.content {
+            Content::Value(value) => value,
+            Content::Withdrawal { .. } => return Err(malformed(format!("Input {index} spends a withdrawal request, which no one can spend."))),
+            Content::GameDeposit { .. } => return Err(malformed(format!("Input {index} spends a move into the game, which is no coin."))),
         };
         if coin.output.address != me {
             return Err(refuse(RefusalCode::NothingToSign, format!("Input {index} spends a coin of {}, which isn't this wallet's address.", coin.output.address.base58())));
@@ -410,6 +437,19 @@ fn read(payload: &str, key: &CoinKey) -> Result<(Transaction, SpendView), Refusa
         paid = paid.checked_add(consumed).ok_or_else(overflow)?;
         let destination = match &output.content {
             Content::Value(_) => Destination::Address { address: output.address.base58(), yours: output.address == me },
+            Content::GameDeposit { value, account } => {
+                // Each of these the node refuses: better here, before anything is shown or signed.
+                if *value == 0 {
+                    return Err(malformed(format!("Output {index} moves nothing into the game: the amount must be more than 0.")));
+                }
+                if output.address != Address::ALL_ZEROS {
+                    return Err(malformed(format!("Output {index} moves coins into the game, but names an address: a move into the game has none.")));
+                }
+                if !is_game_account(account) {
+                    return Err(malformed(format!("Output {index} moves coins into {}, which isn't a game account anyone could have.", hex(account))));
+                }
+                Destination::GameAccount { account: hex(account), address: format!("{ACCOUNT_PREFIX}{}", hex(account)), yours: account == my_account }
+            }
             Content::Withdrawal { value, main_fee, main_address: to, script } => {
                 // Refused unless it reads as an address of this network, written as the wallet writes one.
                 let known = main_script(to).is_some_and(|s| s.as_bytes() == script) && main_address(script).as_deref() == Some(to);
@@ -432,7 +472,8 @@ fn read(payload: &str, key: &CoinKey) -> Result<(Transaction, SpendView), Refusa
 /// What the unsigned spend `payload` does, for the approval to show: a Clear View, or a refusal.
 pub fn decode_spend(payload: &str, starter: &str) -> Result<Decoded, Refusal> {
     let key = CoinKey::new(starter).map_err(|e| refuse(RefusalCode::InvalidStarter, e))?;
-    Ok(Decoded::Clear { view: read(payload, &key)?.1 })
+    let my_account = crate::own_account(starter).map_err(|e| refuse(RefusalCode::InvalidStarter, e))?;
+    Ok(Decoded::Clear { view: read(payload, &key, &my_account)?.1 })
 }
 
 /// Signs the unsigned spend `payload`, once it passes every check `decode_spend` makes: one
@@ -440,7 +481,8 @@ pub fn decode_spend(payload: &str, starter: &str) -> Result<Decoded, Refusal> {
 /// canonical bytes. The answer is what the node's `submit_transaction` takes.
 pub fn sign_spend(payload: &str, starter: &str) -> Result<SignedSpend, Refusal> {
     let key = CoinKey::new(starter).map_err(|e| refuse(RefusalCode::InvalidStarter, e))?;
-    let (transaction, _) = read(payload, &key)?;
+    let my_account = crate::own_account(starter).map_err(|e| refuse(RefusalCode::InvalidStarter, e))?;
+    let (transaction, _) = read(payload, &key, &my_account)?;
     let authorization = Authorization { verifying_key: key.key.verifying_key(), signature: key.sign(&transaction.encode())? };
     let authorizations = vec![authorization; transaction.inputs.len()];
     Ok(SignedSpend { tx: authorized_json(&transaction, &authorizations).to_string(), txid: hex(&transaction.txid()) })

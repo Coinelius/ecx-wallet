@@ -183,7 +183,14 @@ export type Destination =
    * `OP_RETURN` of the transaction, `data` its pushed bytes, hex. The L1 Decoder doesn't read them;
    * the wallet checks they are the entry it made (`SignPrompt.entry`).
    */
-  | { kind: "data"; data: string };
+  | { kind: "data"; data: string }
+  /**
+   * A game account (Sidepot, docs/adr/0023): the output moves its sats out of the coins and into the
+   * game account `account` (its x-only key, hex; `address` is `spot:<key>`), credited when its block
+   * is processed. It is no coin and pays no address. `yours` if the account re-derives from the
+   * Slot's Starter.
+   */
+  | { kind: "gameAccount"; account: string; address: string; yours: boolean };
 
 /** What a Deposit is credited to on its Slot, as that Slot's own Chain Module derives it. */
 export interface DepositCredit {
@@ -442,7 +449,9 @@ export interface SidepotCoin {
 /** What a coin spend pays. Sats are decimal strings. */
 export type CoinPayment =
   | { kind: "transfer"; /** A Sidepot address. */ to: string; amount: string }
-  | { kind: "withdrawal"; /** A main-chain address. */ mainAddress: string; amount: string; /** For the main chain's miners. */ mainFee: string };
+  | { kind: "withdrawal"; /** A main-chain address. */ mainAddress: string; amount: string; /** For the main chain's miners. */ mainFee: string }
+  /** Into the wallet's own game account, from the same Starter (docs/adr/0023). */
+  | { kind: "game"; amount: string };
 
 /** What to pay, and what to build it from (the Sidepot module's `SpendOrder`). */
 export interface CoinSpendOrder {

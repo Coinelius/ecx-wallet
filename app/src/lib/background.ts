@@ -309,6 +309,14 @@ export const withdrawCoins = (slot: number, pay: { mainAddress: string; amount: 
   send<SendResult>({ kind: "coins.spend", slot, pay: { kind: "withdrawal", ...pay }, host });
 
 /**
+ * Moves `amount` sats of the wallet's Sidepot coins into its own game account on the same chain
+ * (docs/adr/0023), where the game can spend them. Reviewed, signed and sent like a Send. Throws on
+ * refusal or rejection.
+ */
+export const moveCoinsToGame = (slot: number, pay: { amount: string }, host?: string) =>
+  send<SendResult>({ kind: "coins.spend", slot, pay: { kind: "game", ...pay }, host });
+
+/**
  * Deposits `amount` sats of confirmed eCash to the Slot: the wallet builds the M5, the user reviews
  * it in an approval window, the wallet signs and broadcasts it. Throws on refusal or rejection.
  */

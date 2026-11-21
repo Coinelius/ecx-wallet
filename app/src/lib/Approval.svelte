@@ -556,6 +556,17 @@
                 {prompt.entry ? `The ${prompt.entry.chainName} entry above, as signed.` : "Carried by the transaction."} It holds no coins and pays no one.
               </div>
               <code class="tiny full-id" data-data>{output.destination.data}</code>
+            {:else if output.destination.kind === "gameAccount"}
+              <!-- A move into a game account (Sidepot, docs/adr/0023): no address, no coin; the game credits the account. -->
+              <div class="small" data-game-account>
+                Into the game account <code data-destination>{output.destination.address}</code>. It stops being a coin: the game credits
+                the account once this transaction is in a block.
+              </div>
+              {#if output.destination.yours}
+                <span class="badge ok" data-yours><Icon name="check" size={14} /> Your own game account (verified by this wallet)</span>
+              {:else}
+                <span class="badge bad" data-not-yours>Not your game account</span>
+              {/if}
             {:else}
               <div class="small">
                 {#if output.destination.l1Address !== undefined}

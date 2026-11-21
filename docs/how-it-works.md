@@ -113,7 +113,7 @@ The extension build turns the build network's server URLs into `host_permissions
 
 Sidepot's state is read from eCash's blocks, so its server only reports the game (ADR 0021):
 
-- `GET /state`: the round, the price of a key, the pot, the game clock, and the eCash height the game has read (`l1_height`).
+- `GET /state`: the round, the price of a key, the pot, the game clock, and the eCash height the game has read (`l1_height`). Also `tip_height` (eCash's tip) and `fork_height`, the eCash height from which the chain takes a move of coins into the game (null where it has none; ADR 0023).
 - `GET /account/<x-only key>`: `{ balance_sats, keys, nonce }`, or `null` for a key the game has no account for.
 - **Balance:** the account's `balance_sats`, as the chain's ECX; `null` shows as 0, not as an error.
 - **History** is empty: the account's Deposits and entries are main-chain transactions, in the main chain's Activity.
@@ -233,17 +233,18 @@ A stuck Deposit (its server doesn't know it, or its status can't be read) offers
 - **Receive:** the wallet's Sidepot address (plain base58, about 27 characters) with Copy and a QR code. It is what the game takes as a cashout's destination.
 - **Send** (`#/coins/88/send`): an amount to another Sidepot address. A Sidepot address has no checksum, and the form says so.
 - **Withdraw** (`#/coins/88/withdraw`): an amount to a main-chain address, with a fee for the main chain's miners (1,000 sats to start with). The form says a withdrawal is slow, depends on the miners, and can't be cancelled.
+- **Move to game** (`#/coins/88/game`, ADR 0023): an amount into the wallet's own game account on Sidepot, with "All of it" (the coins less the fee). The form says it arrives once the transaction is in a Sidepot block, and that it comes back out as coins by a cashout. Off, with one line saying from which eCash block it works, while `/state`'s `fork_height` is null or above `tip_height`.
 - **Withdrawals waiting:** each request not known to be paid, with where it stands: sent, waiting for a bundle, in the next bundle, or handed to the main chain, where the wallet can't follow it ("Stop showing it" forgets the wallet's record).
 
-Send and Withdraw approve in place, like the wallet's own Send and Deposit. The approval is a Clear View: the payment, the change back to the wallet's own address ("Yours"), the fee, and for a withdrawal the Dangerous box of a withdrawal burn. After approval the screen shows the txid.
+Send, Withdraw and Move to game approve in place, like the wallet's own Send and Deposit. The approval is a Clear View: the payment, the change back to the wallet's own address ("Yours"), the fee, for a withdrawal the Dangerous box of a withdrawal burn, and for a move the game account, `spot:<key>`, marked "Your own game account" when it re-derives from the Starter. After approval the screen shows the txid. **Coin activity** lists the server's history of the address; a move the wallet made shows as "Moved into the game" (the server reports it as a transfer; the wallet keeps its own moves' txids, `sidepot-coins-moves:<chain>`).
 
 **How** (`wallet/src/sidepot-coins.ts`, `core/sidepot/src/coins.rs` and `thunder.rs`, ADR 0022):
 
 1. `sidepot.wasm` derives the address from the Slot's Starter (`coin_address`): a ristretto255 key from the BIP32 key at `m/300'/88'/1'`, hashed onto its scalar field.
 2. Sidepot's server lists the address's coins (`GET /coins/<address>`) and the chain's pending withdrawal bundle (`GET /withdrawal-bundle`). The balance is the plain coins, less those a spend of the wallet's holds (`coins.reported`).
-3. For a spend (`coins.spend`), the module builds it from the listed coins (`build_coin_spend`): the largest first, change to the same address, a flat fee of 1,000 sats (`SIDEPOT_COIN_FEE`). A withdrawal's main-chain address must be one of this network's, its payout above the main chain's dust, and its main-chain fee above zero.
-4. The module explains the unsigned spend from its own bytes (`decode_coin_spend`). Anything but exactly the payment asked for, change to the wallet and that fee is a wallet bug, refused before the user sees it (`isSpendAskedFor`).
-5. After approval the module signs it (`sign_coin_spend`): one authorization per input, without randomness. The server hands it to its node (`POST /tx`), which attaches the Utreexo proof. The wallet checks the txid the server answers against its own.
+3. For a spend (`coins.spend`), the module builds it from the listed coins (`build_coin_spend`): the largest first, change to the same address, a flat fee of 1,000 sats (`SIDEPOT_COIN_FEE`). A withdrawal's main-chain address must be one of this network's, its payout above the main chain's dust, and its main-chain fee above zero. A move into the game is the node's `GameDeposit` output: the value, the Starter's own game account, and the address of 20 zero bytes, which the node requires; it never becomes a coin.
+4. The module explains the unsigned spend from its own bytes (`decode_coin_spend`). Anything but exactly the payment asked for, change to the wallet and that fee is a wallet bug, refused before the user sees it (`isSpendAskedFor`); so is a move into a game account that isn't the wallet's own.
+5. After approval the module signs it (`sign_coin_spend`): one authorization per input, without randomness. The server hands it to its node (`POST /tx`), which attaches the Utreexo proof. The wallet checks the txid the server answers against its own. A node that refuses a move because the rule isn't active ("not active") is reported as "Sidepot doesn't take moves into the game yet".
 6. The coins it spent are held (`sidepot-coins-held:<chain>`) until the server lists none of them (it is in a block), or for 6 blocks. A withdrawal request is also kept (`sidepot-coins-withdrawals:<chain>`): the server stops listing one when its bundle goes to the main chain, months before it is paid.
 
 One spend at a time. The formats are the Sidepot node's, checked against its own code by fixtures (`core/sidepot/thunder-vectors`). The Provider has nothing for these coins: a site can't ask for a Sidepot transaction.

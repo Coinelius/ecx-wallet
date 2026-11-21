@@ -72,6 +72,14 @@ fn withdrawal(coins: &[Value], to: &str, amount: u64, main_fee: u64, fee: u64) -
     json!({ "coins": coins, "pay": { "kind": "withdrawal", "mainAddress": to, "amount": amount.to_string(), "mainFee": main_fee.to_string() }, "fee": fee.to_string() }).to_string()
 }
 
+/// A move of `amount` sats into the Starter's own game account (docs/adr/0023).
+fn game(coins: &[Value], amount: u64, fee: u64) -> String {
+    json!({ "coins": coins, "pay": { "kind": "game", "amount": amount.to_string() }, "fee": fee.to_string() }).to_string()
+}
+
+/// STARTER's game account (its x-only key at m/300'/88'/0'): pinned, as the fixtures name it.
+const MY_ACCOUNT: &str = "0f2ffb3eef6d464fc93b8132a3d95da4b3fb7db57a4dfda30dca200e1137fb5b";
+
 /// The built spend's transaction and the coins it names.
 fn parts(payload: &str) -> (Transaction, Vec<PointedOutput>) {
     let value: Value = serde_json::from_str(payload).unwrap();
@@ -481,6 +489,133 @@ fn a_spend_that_isnt_what_it_says_is_refused_unsigned() {
     assert!(refused(&spends_request, STARTER).message.contains("withdrawal request, which no one can spend"));
 }
 
+// ---- Moving coins into the game (docs/adr/0023) ----
+
+#[test]
+fn a_game_deposit_has_the_nodes_canonical_bytes_json_and_txid_and_the_nodes_signatures_verify() {
+    let vectors = vectors();
+    let deposits = &vectors["gameDeposits"];
+    let outputs = deposits["outputs"].as_array().unwrap();
+    assert_eq!(outputs.len(), 4);
+    for case in outputs {
+        let output = &case["json"];
+        assert_eq!(output["address"], "11111111111111111111");
+        assert_eq!(Address::parse(output["address"].as_str().unwrap()), Some(Address::ALL_ZEROS));
+        let content = Content::from_json(&output["content"]).unwrap();
+        let Content::GameDeposit { value, account } = &content else { panic!("not a game deposit") };
+        // Tag 2, the value as a little-endian u64, then the account's 32 bytes; after the address's 20 zero bytes.
+        let expected = format!("{}02{}{}", "00".repeat(20), hex(&value.to_le_bytes()), hex(account));
+        assert_eq!(case["borsh"], expected);
+        assert_eq!(content.to_json(), output["content"]);
+        assert_eq!(content.consumed(), Some(*value));
+    }
+    let transactions = deposits["transactions"].as_array().unwrap();
+    assert_eq!(transactions.len(), 3);
+    for case in transactions {
+        let tx = Transaction::from_json(&case["json"]).unwrap();
+        assert_eq!(hex(&tx.encode()), case["borsh"]);
+        assert_eq!(hex(&tx.txid()), case["txid"]);
+        assert_eq!(tx.to_json(), case["json"]);
+        assert!(tx.outputs.iter().any(|o| matches!(o.content, Content::GameDeposit { .. })));
+        // Each input names its coin by the coin's hash, as for any spend.
+        for ((outpoint, hash), input) in tx.inputs.iter().zip(case["inputs"].as_array().unwrap()) {
+            assert_eq!(outpoint.to_json(), input["outpoint"]);
+            assert_eq!(hex(hash), input["hash"]);
+        }
+        let (signed, authorizations) = authorized_from_json(&case["authorized"]).unwrap();
+        assert_eq!(signed, tx);
+        for authorization in &authorizations {
+            assert!(verify(&authorization.verifying_key, &tx.encode(), &authorization.signature));
+            assert_eq!(Address::of_key(&authorization.verifying_key).base58(), case["address"]);
+        }
+    }
+    // The node reads either case of hex but writes lower case; the wallet reads only what it writes.
+    let mut upper = outputs[1]["json"]["content"].clone();
+    upper["GameDeposit"]["account"] = json!(MY_ACCOUNT.to_uppercase());
+    assert!(Content::from_json(&upper).is_err());
+    for bad in [json!({ "GameDeposit": { "value": 1 } }), json!({ "GameDeposit": { "value": 1, "account": "00", } }), json!({ "GameDeposit": { "value": -1, "account": MY_ACCOUNT } }), json!({ "GameDeposit": { "value": 1, "account": MY_ACCOUNT, "x": 1 } })] {
+        assert!(Content::from_json(&bad).is_err(), "{bad}");
+    }
+}
+
+#[test]
+fn a_move_into_the_game_pays_the_starters_own_account_with_change_back() {
+    assert_eq!(derive_account(STARTER, 1, 0).unwrap().receive[0].public_key, MY_ACCOUNT);
+    let built = build_spend(&game(&my_coins(), 500_000, 1_000), STARTER).unwrap();
+    let (tx, coins) = parts(&built.payload);
+    assert_eq!(coins[0].to_json(), my_coins()[2]);
+    assert_eq!(tx.outputs.len(), 2);
+    assert_eq!(tx.outputs[0].address, Address::ALL_ZEROS);
+    assert_eq!(tx.outputs[0].content, Content::GameDeposit { value: 500_000, account: arr(MY_ACCOUNT) });
+    assert_eq!((tx.outputs[1].address.base58().as_str(), &tx.outputs[1].content), (MY_ADDRESS, &Content::Value(4_499_000)));
+    assert_eq!(
+        view(&built.payload),
+        json!({
+            "kind": "clear",
+            "view": {
+                "dangerousModes": [],
+                "inputs": [{ "index": 0, "asset": "", "amount": "5000000", "yours": true }],
+                "outputs": [
+                    { "index": 0, "asset": "", "amount": "500000", "destination": { "kind": "gameAccount", "account": MY_ACCOUNT, "address": format!("spot:{MY_ACCOUNT}"), "yours": true } },
+                    { "index": 1, "asset": "", "amount": "4499000", "destination": { "kind": "address", "address": MY_ADDRESS, "yours": true } },
+                ],
+                "fee": { "asset": "", "amount": "1000" },
+            }
+        })
+    );
+    // Everything, with no change; and one sat more than the coins hold.
+    let (tx, _) = parts(&build_spend(&game(&my_coins(), 7_299_000, 1_000), STARTER).unwrap().payload);
+    assert_eq!(tx.outputs.len(), 1);
+    assert_eq!(build_spend(&game(&my_coins(), 7_299_001, 1_000), STARTER).unwrap_err().code, RefusalCode::InsufficientFunds);
+    // Signed like any spend.
+    let signed = sign_spend(&built.payload, STARTER).unwrap();
+    let (tx, authorizations) = authorized_from_json(&serde_json::from_str(&signed.tx).unwrap()).unwrap();
+    assert_eq!(signed.txid, hex(&tx.txid()));
+    assert!(verify(&authorizations[0].verifying_key, &tx.encode(), &authorizations[0].signature));
+}
+
+#[test]
+fn a_move_of_nothing_or_one_the_wallet_didnt_build_as_its_own_is_refused_or_shown_as_not_yours() {
+    // Nothing, or not a number of sats: refused before anything is built.
+    assert!(build_spend(&game(&my_coins(), 0, 1_000), STARTER).unwrap_err().message.contains("more than 0"));
+    let order = json!({ "coins": my_coins(), "pay": { "kind": "game", "amount": "1.5" }, "fee": "1000" }).to_string();
+    assert!(build_spend(&order, STARTER).unwrap_err().message.contains("whole number of sats"));
+    // The order names no account: the wallet moves coins only into its own.
+    let order = json!({ "coins": my_coins(), "pay": { "kind": "game", "amount": "1000", "account": MY_ACCOUNT }, "fee": "1000" }).to_string();
+    assert_eq!(build_spend(&order, STARTER).unwrap_err().code, RefusalCode::Malformed);
+
+    let built = build_spend(&game(&my_coins(), 500_000, 1_000), STARTER).unwrap();
+    let payload: Value = serde_json::from_str(&built.payload).unwrap();
+    let with = |pointer: &str, value: Value| {
+        let mut changed = payload.clone();
+        *changed.pointer_mut(pointer).unwrap() = value;
+        changed.to_string()
+    };
+    let refused = |text: String| {
+        let refusal = decode_spend(&text, STARTER).unwrap_err();
+        assert_eq!(sign_spend(&text, STARTER).unwrap_err(), refusal, "what isn't shown isn't signed");
+        refusal
+    };
+    // Someone else's game account: decoded, and shown as not the wallet's own.
+    let theirs = derive_account(OTHER_STARTER, 1, 0).unwrap().receive[0].public_key.clone();
+    let other = with("/transaction/outputs/0/content/GameDeposit/account", json!(theirs));
+    let destination = &view(&other)["view"]["outputs"][0]["destination"];
+    assert_eq!(*destination, json!({ "kind": "gameAccount", "account": theirs, "address": format!("spot:{theirs}"), "yours": false }));
+    // What the node refuses, the wallet refuses first: nothing moved, an address on it, a key no one could have.
+    let value = |v: u64| with("/transaction/outputs/0/content/GameDeposit/value", json!(v));
+    assert!(refused(value(0)).message.contains("moves nothing"));
+    assert!(refused(with("/transaction/outputs/0/address", json!(MY_ADDRESS))).message.contains("names an address"));
+    // 2^256 - 1 is above the field's prime: no x coordinate at all.
+    assert!(refused(with("/transaction/outputs/0/content/GameDeposit/account", json!("ff".repeat(32)))).message.contains("isn't a game account"));
+    // A game deposit is no coin: none can be an input.
+    let deposit = json!({ "outpoint": { "Regular": { "txid": hex(&[6; 32]), "vout": 0 } }, "output": payload["transaction"]["outputs"][0] });
+    let hash = PointedOutput::from_json(&deposit).unwrap().hash().to_vec();
+    let mut spends_deposit: Value = payload.clone();
+    spends_deposit["coins"][0] = deposit.clone();
+    spends_deposit["transaction"]["inputs"][0] = json!([deposit["outpoint"], hash]);
+    assert!(refused(spends_deposit.to_string()).message.contains("which is no coin"));
+}
+
 // ---- What the node made of the wallet's own transactions ----
 
 /// The spends the node's code was shown: a name, the order's coins and payment, and the fee.
@@ -495,6 +630,8 @@ fn wallet_cases() -> Vec<(&'static str, String)> {
         ("a withdrawal request to a P2TR address", withdrawal(&coins, MAIN[2], 330, 1, 0)),
         ("a withdrawal request to a P2PKH address", withdrawal(&coins[..1], MAIN[3], 1_998_000, 1_000, 1_000)),
         ("a withdrawal request to a P2SH address", withdrawal(&coins, MAIN[4], 7_000_000, 298_000, 1_000)),
+        ("a move into the game account, with change", game(&coins, 500_000, 1_000)),
+        ("a move of every coin into the game account", game(&coins, 7_299_000, 1_000)),
     ]
 }
 

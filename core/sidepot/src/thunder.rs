@@ -10,7 +10,8 @@
 //!              0x02 Deposit  | main-chain txid(32, header byte order) | vout(u32)
 //! content      0x00 Value      | sats(u64)
 //!              0x01 Withdrawal | value(u64) | main_fee(u64) | len(u32) | main-chain script
-//! output       address(20) | content
+//!              0x02 GameDeposit | value(u64) | game account key(32)      (docs/adr/0023)
+//! output       address(20) | content                  a GameDeposit's address is 20 zero bytes
 //! coin         outpoint | output                      a `PointedOutput`: what a server lists
 //! transaction  n(u32) | n × (outpoint | BLAKE3(coin)) | m(u32) | m × output
 //! ```
@@ -24,7 +25,7 @@
 //!
 //! In JSON, as the node's RPC reads and writes them: a txid is hex and a Deposit's outpoint
 //! `"<txid as a node prints it>:<vout>"`; an input's hash is a list of 32 numbers; amounts are
-//! sats; a withdrawal's main-chain address is text.
+//! sats; a withdrawal's main-chain address is text; a game deposit's account is 64 hex digits.
 //!
 //! `tests/coins.rs` holds every function here to fixtures written by the node's own types
 //! (`thunder-vectors/`).
@@ -44,6 +45,10 @@ use crate::hex;
 pub struct Address(pub [u8; 20]);
 
 impl Address {
+    /// The address of no key, 20 zero bytes: what the node requires of a game deposit's output,
+    /// which is no coin and has no holder. In base58, `11111111111111111111`.
+    pub const ALL_ZEROS: Address = Address([0; 20]);
+
     /// The address of a verifying key (32 bytes, a compressed ristretto255 point).
     pub fn of_key(verifying_key: &[u8; 32]) -> Self {
         let mut out = [0u8; 20];
@@ -140,6 +145,10 @@ pub enum Content {
         /// That address's script: what the canonical bytes carry.
         script: Vec<u8>,
     },
+    /// A game deposit (docs/adr/0023): `value` sats leave the coins for the game account `account`
+    /// (its 32-byte x-only key), credited when the transaction's block is processed. It never
+    /// becomes a coin, and its output's address must be [`Address::ALL_ZEROS`].
+    GameDeposit { value: u64, account: [u8; 32] },
 }
 
 impl Content {
@@ -148,6 +157,7 @@ impl Content {
         match self {
             Content::Value(value) => Some(*value),
             Content::Withdrawal { value, main_fee, .. } => value.checked_add(*main_fee),
+            Content::GameDeposit { value, .. } => Some(*value),
         }
     }
 
@@ -164,6 +174,11 @@ impl Content {
                 out.extend_from_slice(&u32::try_from(script.len()).expect("a script is short").to_le_bytes());
                 out.extend_from_slice(script);
             }
+            Content::GameDeposit { value, account } => {
+                out.push(2);
+                out.extend_from_slice(&value.to_le_bytes());
+                out.extend_from_slice(account);
+            }
         }
     }
 
@@ -171,11 +186,12 @@ impl Content {
         match self {
             Content::Value(value) => json!({ "Value": value }),
             Content::Withdrawal { value, main_fee, main_address, .. } => json!({ "Withdrawal": { "value": value, "main_fee": main_fee, "main_address": main_address } }),
+            Content::GameDeposit { value, account } => json!({ "GameDeposit": { "value": value, "account": hex(account) } }),
         }
     }
 
     pub fn from_json(value: &Value) -> Result<Self, String> {
-        let (kind, body) = only_entry(value).ok_or("an output's content is one of Value or Withdrawal")?;
+        let (kind, body) = only_entry(value).ok_or("an output's content is one of Value, Withdrawal or GameDeposit")?;
         match kind {
             "Value" => body.as_u64().map(Content::Value).ok_or_else(|| "a Value is a number of sats".to_string()),
             "Withdrawal" => {
@@ -185,6 +201,14 @@ impl Content {
                 let main_address = fields["main_address"].as_str().ok_or("a Withdrawal's main_address is text")?;
                 let script = node_script(main_address).ok_or_else(|| format!("{main_address} isn't a main-chain address"))?;
                 Ok(Content::Withdrawal { value, main_fee, main_address: main_address.to_string(), script })
+            }
+            "GameDeposit" => {
+                let fields = exact_fields(body, &["value", "account"]).ok_or("a GameDeposit has a value and an account")?;
+                let value = fields["value"].as_u64().ok_or("a GameDeposit's value is a number of sats")?;
+                // The node reads either case and writes lower case: the wallet reads only what the node writes.
+                let lower = |text: &&str| !text.bytes().any(|b| b.is_ascii_uppercase());
+                let account = fields["account"].as_str().filter(lower).and_then(unhex::<32>).ok_or("a GameDeposit's account is 64 lowercase hex digits")?;
+                Ok(Content::GameDeposit { value, account })
             }
             other => Err(format!("{other} isn't a kind of content")),
         }

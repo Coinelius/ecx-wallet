@@ -15,6 +15,11 @@
 //   GET  <url>/coins/<address>      { height, coins }: the address's coins, as the node's list_utxos lists them
 //   POST <url>/tx                   a signed transaction (the node's Authorized<Transaction>, JSON) → { txid }
 //   GET  <url>/withdrawal-bundle    the withdrawal bundle the chain is waiting on, or null
+//   GET  <url>/coin-history/<addr>  what happened to the address's coins, newest first (optional)
+//   GET  <url>/withdrawal-notice    what the chain's operator says about withdrawals (optional)
+//
+// and `/state`'s `fork_height` says from which eCash block the chain takes a move of coins into the
+// game (docs/adr/0023): null where the chain has no such height.
 import { NATIVE_COIN, type SidepotCoin, type SidepotContent, type SidepotOutPoint } from "./chain-module";
 import { serverFetch, SidechainServerError, type Fetch, type SidechainServer } from "./sidechain-server";
 
@@ -70,6 +75,20 @@ export interface SidepotCoinEvent {
   time?: number;
   /** A withdrawal request it made, and how far that has got (`WithdrawalProgress`). */
   withdrawal?: { amount: string; mainFee: string; mainAddress: string; vout: number; progress: WithdrawalProgress };
+  /**
+   * The wallet's own record says this transaction moved coins into the game account (docs/adr/0023).
+   * The server reports it as a plain transfer: this is the wallet's word, not the server's.
+   */
+  intoGame?: true;
+}
+
+/**
+ * From when the chain takes a move of coins into a game account, as its server reports it: the eCash
+ * height the rule is active from (`null` if the chain has none), and eCash's tip as the server sees it.
+ */
+export interface SidepotGameMoves {
+  forkHeight: number | null;
+  tipHeight: number;
 }
 
 /**
@@ -157,6 +176,21 @@ export function sidepotClient(baseUrl: string, fetchFn: Fetch = (...args) => fet
         bonusPoolSats: n("bonus_pool_sats"),
         accounts: n("accounts"),
       };
+    },
+
+    /**
+     * From when the chain takes a move of coins into a game account: `/state`'s `fork_height` (a
+     * height, or null) and `tip_height`. Undefined if the server can't be read or doesn't say: a
+     * server too old to report `fork_height` is taken as a chain without the rule.
+     */
+    async gameMoves(): Promise<SidepotGameMoves | undefined> {
+      try {
+        const { fork_height, tip_height } = ((await get("/state", "game state")) ?? {}) as Record<string, unknown>;
+        if (!isCount(tip_height)) return undefined;
+        return { forkHeight: isCount(fork_height) ? fork_height : null, tipHeight: tip_height };
+      } catch {
+        return undefined;
+      }
     },
 
     /** The account of `player` (its x-only key, 64 hex digits), or null if the game has none for it yet. */
