@@ -10,7 +10,11 @@
   import Sheet from "$lib/Sheet.svelte";
   import { amountText } from "$lib/unit.svelte";
 
-  let { slot, info }: { slot: number; info: ChainInfo } = $props();
+  /**
+   * `reportedBy`: the server whose report this card shows, for the screen's one "Reported by" notice
+   * (the chain's screen prints it, covering this card and the chain's own balance).
+   */
+  let { slot, info, reportedBy = $bindable() }: { slot: number; info: ChainInfo; reportedBy?: string } = $props();
 
   let shown = $state<ShownReport<SidepotCoinsReport>>({ refreshing: true });
   /** The wallet's Sidepot address: its own to derive, so it shows even when the server can't be read. */
@@ -73,6 +77,9 @@
   });
 
   const report = $derived(shown.report);
+  $effect(() => {
+    reportedBy = report?.server;
+  });
   const canSpend = $derived(report !== undefined && shown.error === undefined && report.balance !== "0");
   /** Whether the chain takes a move into the game now; if not, the one line that says from when. */
   const movesOpen = $derived(report?.gameMoves?.open === true);
@@ -108,7 +115,7 @@
   }
 </script>
 
-<section class="card coins" data-coins data-refreshing={shown.refreshing ? "" : undefined}>
+<section class="card coins" data-coins data-coins-server={report?.server} data-refreshing={shown.refreshing ? "" : undefined}>
   <div class="head">
     <h2>Coins on {info.name}</h2>
     <span class="muted tiny">
@@ -205,10 +212,6 @@
         {/each}
       </ul>
     </div>
-  {/if}
-
-  {#if report}
-    <p class="reported" data-coins-reported-by>Reported by {report.server}. This wallet doesn't verify it.</p>
   {/if}
 </section>
 

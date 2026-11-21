@@ -252,7 +252,8 @@
           </span>
         </p>
       {/if}
-      <p class="reported">
+      <!-- Not a server's report: the screen's one "Reported by" notice is the balance card's. -->
+      <p class="muted small" data-builds-note>
         This wallet builds the transaction from your own coins. You review exactly what it built before anything is signed.
       </p>
       <button

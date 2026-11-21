@@ -19,6 +19,8 @@
   /** `#/chain/<id>/activity` opens on the Activity tab (after a Send, say). */
   let tab = $state<Tab>(page.params.tab === "activity" ? "activity" : "assets");
   let actions = $state<Actions | undefined>(undefined);
+  /** The server of Sidepot's coins card, if this chain has one: the screen's one notice names it too. */
+  let coinsServer = $state<string | undefined>(undefined);
 
   // Nothing here works while locked: the home page asks for the password.
   vaultStatus().then((s) => {
@@ -32,6 +34,8 @@
   const balance = $derived(ecxAsset && view?.shown.report?.balances.find((b) => b.asset === ecxAsset.id));
   const pending = $derived(ecxAsset && view?.shown.report?.unconfirmed.find((u) => u.asset === ecxAsset.id));
   const deposits = $derived(view && Array.isArray(view.deposits) ? view.deposits : []);
+  /** Every server whose report the Assets tab shows, once each: the chain's, and its coins card's. */
+  const reporters = $derived([...new Set([view?.shown.report?.server, coinsServer].filter((s): s is string => s !== undefined))]);
   const settled = $derived(
     view !== undefined &&
       (!view.info.on || (!view.shown.refreshing && view.address !== undefined)) &&
@@ -90,10 +94,11 @@
       <AssetRows {view} onretry={() => chains.retry(id)} onreceive={() => actions?.receive(id)} />
       {#if view.info.coins && typeof id === "number"}
         <!-- The wallet's own coins on the chain, apart from its game account's balance (Sidepot, docs/adr/0022). -->
-        <SidepotCoins slot={id} info={view.info} />
+        <SidepotCoins slot={id} info={view.info} bind:reportedBy={coinsServer} />
       {/if}
-      {#if view.shown.report}
-        <p class="reported" data-reported-by>Reported by {view.shown.report.server}. This wallet doesn't verify it.</p>
+      <!-- One notice for everything above it that a server reported: the balance and, on Sidepot, the coins card. -->
+      {#if reporters.length > 0}
+        <p class="reported" data-reported-by>Reported by {reporters.join(" and ")}. This wallet doesn't verify it.</p>
       {/if}
     </div>
     <div class="panel" role="tabpanel" hidden={tab !== "activity"}>
