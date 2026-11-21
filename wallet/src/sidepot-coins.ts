@@ -1,8 +1,8 @@
 // Ordinary coins on the Sidepot sidechain (docs/adr/0022). Besides its game accounts, Sidepot has
 // coins held by addresses of its own: a game cashout arrives as one, and a coin can ask to be
 // withdrawn to the main chain. The wallet has one address there, from the Slot's Starter, and
-// follows no chain: Sidepot's server lists the address's coins, the Slot's module builds a transfer
-// or a withdrawal request from them and explains it, the user approves it as any Send, the module
+// follows no chain: Sidepot's server lists the address's coins, the Slot's module builds a transfer,
+// a withdrawal request or a move into the wallet's own game account (docs/adr/0023) from them and explains it, the user approves it as any Send, the module
 // signs it, and the server hands it to its node.
 //
 // Everything the server lists is reported, not verified. What the wallet signs is checked by the
@@ -16,13 +16,16 @@
 // through the months the main chain's miners vote on the bundle, Sidepot's server lists it nowhere.
 // So the wallet also keeps the requests it made itself, and goes on showing one the server stopped
 // listing, saying it can't follow it further, until the user has it forgotten.
+//
+// A move into the game account is a transfer as far as the server's history goes. The wallet keeps
+// the txids of the moves it made itself, to name them as moves in its coin activity.
 import { createKeyRouting, type ChainModules, type KeyedChain, type Keys } from "./accounts";
 import { ChainModuleRefusal, type BuiltCoinSpend, type ChainEntry, type ClearView, type CoinPayment, type NetworkEntry, type SidepotCoin, type Starter } from "./chain-module";
 import { ErrorCode, ProviderRpcError } from "./errors";
 import type { SendResult } from "./pull-path";
 import { sendRequester } from "./send";
 import { SidechainServerError } from "./sidechain-server";
-import { isSidepotAddress, outpointKey, type SidepotClient, type SidepotCoinEvent, type SidepotCoins } from "./sidepot";
+import { isSidepotAddress, outpointKey, type SidepotClient, type SidepotCoinEvent, type SidepotCoins, type SidepotGameMoves } from "./sidepot";
 import { rejected, type ApprovalContext, type SignPrompt, type SigningApproval } from "./signing";
 import { createSpendQueue, HOLD_BLOCKS, type SpendQueue } from "./spends";
 import type { KeyValueStore } from "./vault";
@@ -35,6 +38,12 @@ export const SIDEPOT_COIN_FEE = "1000";
 
 /** Who the approval names for a withdrawal request the wallet built. */
 export const withdrawalRequester = (chainName: string) => `This wallet (Withdraw from ${chainName})`;
+
+/** Who the approval names for a move of coins into the game account the wallet built. */
+export const gameMoveRequester = (chainName: string) => `This wallet (Move to game on ${chainName})`;
+
+/** How many of its own moves into the game the wallet remembers, newest kept. */
+const MOVES_KEPT = 200;
 
 /**
  * Where a withdrawal request stands, as far as Sidepot's server and the wallet's own record say:
@@ -84,6 +93,11 @@ export interface SidepotCoinsReport {
   history?: SidepotCoinEvent[];
   /** What the chain's operator says about withdrawals, such as when the next bundle is planned. The server's words. */
   withdrawalNotice?: string;
+  /**
+   * From when the chain takes a move of coins into the game account, as the server reports it
+   * (docs/adr/0023); `open` once eCash's tip has reached that height. Undefined if the server didn't say.
+   */
+  gameMoves?: SidepotGameMoves & { open: boolean };
   /** When the server reported it, in milliseconds since the epoch. */
   readAt: number;
 }
@@ -108,6 +122,12 @@ interface MadeWithdrawal {
   height: number;
   /** The server has listed it since. */
   seen: boolean;
+}
+
+/** A move into the game account the wallet made: its txid, so its coin activity can name it. */
+interface MadeMove {
+  txid: string;
+  amount: string;
 }
 
 export interface SidepotCoinsDeps extends Keys, ChainModules {
@@ -153,7 +173,9 @@ function checkedPayment(pay: unknown): CoinPayment {
     if (!isSats(p.mainFee)) throw refusal("Enter a main-chain fee above zero: it is what pays the main chain's miners to include the withdrawal.");
     return { kind: "withdrawal", mainAddress, amount: p.amount, mainFee: p.mainFee };
   }
-  throw refusal("A Sidepot coin spend is a transfer or a withdrawal.");
+  // Only ever the wallet's own game account: the page names none, and the module puts in the Starter's.
+  if (p.kind === "game" && Object.keys(p).every((k) => k === "kind" || k === "amount")) return { kind: "game", amount: p.amount };
+  throw refusal("A Sidepot coin spend is a transfer, a withdrawal or a move into your game account.");
 }
 
 /**
@@ -169,6 +191,10 @@ export function isSpendAskedFor(view: ClearView, pay: CoinPayment, fee: string):
   const to = payment.destination;
   if (pay.kind === "transfer") {
     return view.dangerousModes.length === 0 && to.kind === "address" && to.address === pay.to && payment.asset === "" && payment.amount === pay.amount;
+  }
+  if (pay.kind === "game") {
+    // The Starter's own game account, as the module re-derived it: never anyone else's.
+    return view.dangerousModes.length === 0 && to.kind === "gameAccount" && to.yours && payment.asset === "" && payment.amount === pay.amount;
   }
   const burns = view.dangerousModes.length === 1 && view.dangerousModes[0].kind === "withdrawalBurn" && view.dangerousModes[0].output === payment.index;
   return (
@@ -198,6 +224,7 @@ export function createSidepotCoins(deps: SidepotCoinsDeps) {
 
   const heldKey = (chain: string) => `sidepot-coins-held:${chain}`;
   const madeKey = (chain: string) => `sidepot-coins-withdrawals:${chain}`;
+  const movesKey = (chain: string) => `sidepot-coins-moves:${chain}`;
 
   /** The stored lists' last change, which the next one waits for: a read and a spend may both change one. */
   let lastChange: Promise<unknown> = Promise.resolve();
@@ -236,7 +263,7 @@ export function createSidepotCoins(deps: SidepotCoinsDeps) {
   async function spendNow(slot: number, pay: CoinPayment, host: string | undefined): Promise<SendResult> {
     const target = await coinsChain(slot);
     const { module, client } = target;
-    const requester = pay.kind === "transfer" ? sendRequester(target.entry.name) : withdrawalRequester(target.entry.name);
+    const requester = pay.kind === "transfer" ? sendRequester(target.entry.name) : pay.kind === "game" ? gameMoveRequester(target.entry.name) : withdrawalRequester(target.entry.name);
     const approval = deps.openSigningApproval({ origin: requester, chain: target.chain, ...(host === undefined ? {} : { host }) });
     let signed: { tx: string; txid: string };
     let spent: string[];
@@ -282,6 +309,10 @@ export function createSidepotCoins(deps: SidepotCoinsDeps) {
       txid = await client.submit(signed.tx);
     } catch (error) {
       if (!(error instanceof SidechainServerError)) throw error;
+      // The node's own words for a chain whose rule isn't active yet: said plainly instead.
+      if (pay.kind === "game" && /not active/i.test(error.message)) {
+        throw new SidechainServerError(error.server, `${target.entry.name} doesn't take moves into the game yet: the rule that allows them isn't active on its chain. Nothing was sent.`);
+      }
       throw new SidechainServerError(error.server, `${error.message} Nothing was sent.`);
     }
     // It went out, whatever the server answers: its coins are held from here on.
@@ -291,6 +322,10 @@ export function createSidepotCoins(deps: SidepotCoinsDeps) {
       // The request is the transaction's first output. Kept, since the server stops listing it long before it is paid.
       const made: MadeWithdrawal = { id: outpointKey({ Regular: { txid: signed.txid, vout: 0 } }), amount: pay.amount, mainFee: pay.mainFee, mainAddress: paidTo ?? pay.mainAddress, height, seen: false };
       await changeList<MadeWithdrawal>(madeKey(target.chain), (all) => [...all, made]);
+    }
+    if (pay.kind === "game") {
+      const made: MadeMove = { txid: signed.txid, amount: pay.amount };
+      await changeList<MadeMove>(movesKey(target.chain), (all) => [...all, made].slice(-MOVES_KEPT));
     }
     if (txid !== signed.txid) throw new SidechainServerError(client.url, `${client.url} reported txid ${txid} for transaction ${signed.txid}.`);
     return { server: client.url, accepted: true, txid };
@@ -308,7 +343,15 @@ export function createSidepotCoins(deps: SidepotCoinsDeps) {
       const target = await coinsChain(slot);
       const { client } = target;
       const { address } = target.module.coinAddress(await target.key());
-      const [listed, bundle, notice, history] = await Promise.all([client.coins(address), client.withdrawalBundle(), client.withdrawalNotice(), client.coinHistory(address)]);
+      const [listed, bundle, notice, history, gameMoves, moves] = await Promise.all([
+        client.coins(address),
+        client.withdrawalBundle(),
+        client.withdrawalNotice(),
+        client.coinHistory(address),
+        client.gameMoves(),
+        deps.store.get<MadeMove[]>(movesKey(target.chain)),
+      ]);
+      const moved = new Set((moves ?? []).map((m) => m.txid));
       /** How far the node says each withdrawal request of the address has got, by its coin. */
       const progress = new Map((history ?? []).flatMap((e) => (e.withdrawal && e.txid ? [[outpointKey({ Regular: { txid: e.txid, vout: e.withdrawal.vout } }), e.withdrawal.progress] as const] : [])));
       const held = await heldOutpoints(target.chain, listed);
@@ -347,15 +390,16 @@ export function createSidepotCoins(deps: SidepotCoinsDeps) {
         held: heldSats.toString(),
         withdrawals,
         fee: SIDEPOT_COIN_FEE,
-        ...(history === undefined ? {} : { history: history.slice(0, 50) }),
+        ...(history === undefined ? {} : { history: history.slice(0, 50).map((e) => (e.kind === "transfer" && e.txid !== undefined && moved.has(e.txid) ? { ...e, intoGame: true as const } : e)) }),
+        ...(gameMoves === undefined ? {} : { gameMoves: { ...gameMoves, open: gameMoves.forkHeight !== null && gameMoves.tipHeight >= gameMoves.forkHeight } }),
         ...(notice === undefined ? {} : { withdrawalNotice: notice }),
         readAt: deps.now(),
       };
     },
 
     /**
-     * Pays `pay` from the wallet's Sidepot coins: a transfer to a Sidepot address, or a withdrawal
-     * request to a main-chain address. Resolves once the server's node took it; throws on refusal
+     * Pays `pay` from the wallet's Sidepot coins: a transfer to a Sidepot address, a withdrawal
+     * request to a main-chain address, or a move into the wallet's own game account. Resolves once the server's node took it; throws on refusal
      * or rejection. `host` is the wallet page that shows the approval itself (`ApprovalContext`).
      * One spend per chain at a time, so two never pick the same coins.
      */

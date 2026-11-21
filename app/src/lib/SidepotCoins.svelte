@@ -1,7 +1,8 @@
 <script lang="ts">
   // The wallet's ordinary coins on the Sidepot sidechain (docs/adr/0022), on Sidepot's own screen
   // beside its game balance: what its server reports of the wallet's address there, the address to
-  // receive at, where to send and withdraw from, and the withdrawal requests still waiting.
+  // receive at, where to send, withdraw and move coins into the game account from (docs/adr/0023),
+  // and the withdrawal requests still waiting.
   import { onMount } from "svelte";
   import { coinsAddress, coinsReported, forgetWithdrawal, getRereadSeconds, onChainsChanged, type ChainInfo, type ShownReport, type SidepotCoinsReport } from "$lib/background";
   import Icon from "$lib/Icon.svelte";
@@ -27,6 +28,8 @@
     if (e.kind === "cashout") return "Cashed out from the game";
     if (e.kind === "deposit") return "Deposit from the main chain";
     if (e.kind === "withdrawal") return "Withdrawal request";
+    // The wallet's own record: the server reports a move into the game as a transfer.
+    if (e.intoGame) return "Moved into the game";
     return e.amount.startsWith("-") ? "Sent" : "Received";
   }
   /** How far a history entry's withdrawal request has got, by the node's account of its bundle. */
@@ -71,6 +74,15 @@
 
   const report = $derived(shown.report);
   const canSpend = $derived(report !== undefined && shown.error === undefined && report.balance !== "0");
+  /** Whether the chain takes a move into the game now; if not, the one line that says from when. */
+  const movesOpen = $derived(report?.gameMoves?.open === true);
+  const movesClosed = $derived.by(() => {
+    const moves = report?.gameMoves;
+    if (report === undefined || moves?.open) return undefined;
+    if (moves === undefined) return `Couldn't read whether ${info.name} takes coins into the game yet.`;
+    if (moves.forkHeight === null) return "Moving coins into the game isn't available on this network.";
+    return `Moving coins into the game works from eCash block ${moves.forkHeight.toLocaleString("en-US")}.`;
+  });
 
   /** Where a withdrawal request stands, in words (`WithdrawalStatus`). */
   const WITHDRAWAL_STATUS = $derived({
@@ -130,7 +142,20 @@
     <a class="button small-button" class:off={!canSpend} href="#/coins/{slot}/withdraw" aria-disabled={!canSpend} data-coins-withdraw>
       <Icon name="deposit" size={16} />Withdraw
     </a>
+    <a
+      class="button small-button"
+      class:off={!canSpend || !movesOpen}
+      href="#/coins/{slot}/game"
+      aria-disabled={!canSpend || !movesOpen}
+      title="Into your game account on {info.name}, where they can buy keys"
+      data-coins-game
+    >
+      <Icon name="forward" size={16} />Move to game
+    </a>
   </nav>
+  {#if movesClosed}
+    <span class="muted tiny" data-coins-game-closed>{movesClosed}</span>
+  {/if}
 
   {#if report && report.withdrawals.length > 0}
     <div class="stack" data-coins-withdrawals>

@@ -20,8 +20,9 @@
 //! what the user asks, never a Signing Request someone else sends:
 //!
 //! - [`coin_address`] turns the Slot's Starter into the wallet's Sidepot address, on a path of its own;
-//! - [`build_spend`], [`decode_spend`] and [`sign_spend`] build a transfer or a withdrawal request
-//!   from that address's coins, say what it does, and sign it (`coins.rs`, `thunder.rs`).
+//! - [`build_spend`], [`decode_spend`] and [`sign_spend`] build a transfer, a withdrawal request
+//!   or a move into the game account (docs/adr/0023) from that address's coins, say what it does,
+//!   and sign it (`coins.rs`, `thunder.rs`).
 //!
 //! This module holds nothing between calls and receives only its own Slot's Starter. Every
 //! per-network value comes from Sidepot's Chain Entry (`chain-entry.json`).
@@ -193,6 +194,11 @@ impl AccountKey {
     fn player(&self) -> [u8; 32] {
         self.keypair.x_only_public_key().0.serialize()
     }
+}
+
+/// The Starter's game account key, for the module's own checks (where a move of coins into the game goes).
+pub(crate) fn own_account(starter: &str) -> Result<[u8; 32], String> {
+    Ok(AccountKey::new(starter)?.player())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

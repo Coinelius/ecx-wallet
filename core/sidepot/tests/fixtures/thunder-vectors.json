@@ -523,6 +523,613 @@
       "txid": "02c000c51dbf14817cab9fbf63c642a620a49c674a24bc44a8a566fc6607f969"
     }
   ],
+  "gameDeposits": {
+    "outputs": [
+      {
+        "borsh": "00000000000000000000000000000000000000000201000000000000000f2ffb3eef6d464fc93b8132a3d95da4b3fb7db57a4dfda30dca200e1137fb5b",
+        "json": {
+          "address": "11111111111111111111",
+          "content": {
+            "GameDeposit": {
+              "account": "0f2ffb3eef6d464fc93b8132a3d95da4b3fb7db57a4dfda30dca200e1137fb5b",
+              "value": 1
+            }
+          }
+        }
+      },
+      {
+        "borsh": "00000000000000000000000000000000000000000220a10700000000000f2ffb3eef6d464fc93b8132a3d95da4b3fb7db57a4dfda30dca200e1137fb5b",
+        "json": {
+          "address": "11111111111111111111",
+          "content": {
+            "GameDeposit": {
+              "account": "0f2ffb3eef6d464fc93b8132a3d95da4b3fb7db57a4dfda30dca200e1137fb5b",
+              "value": 500000
+            }
+          }
+        }
+      },
+      {
+        "borsh": "000000000000000000000000000000000000000002ffffffffffffffff79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+        "json": {
+          "address": "11111111111111111111",
+          "content": {
+            "GameDeposit": {
+              "account": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+              "value": 18446744073709551615
+            }
+          }
+        }
+      },
+      {
+        "borsh": "0000000000000000000000000000000000000000020040075af0750700c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5",
+        "json": {
+          "address": "11111111111111111111",
+          "content": {
+            "GameDeposit": {
+              "account": "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5",
+              "value": 2100000000000000
+            }
+          }
+        }
+      }
+    ],
+    "transactions": [
+      {
+        "address": "3GFfPDAbKCDsdH6WJoYHE4qZk4wF",
+        "authorized": {
+          "authorizations": [
+            {
+              "signature": "ee662542ebea4ceaececc6dd65cfaae9d60c427123df60a5e3120c145dcf016dd4fb2a63256a932cb63d28844f0583b3b29fa7566d1599ce0323b2670d7a3d0e",
+              "verifying_key": "80a95b72a58fc6fa60c2e06cafd9a0ce083489731841b55dfc20f2687ae08b21"
+            }
+          ],
+          "transaction": {
+            "inputs": [
+              [
+                {
+                  "Regular": {
+                    "txid": "aad8e5685e5048d6b49a167176a4c73e608b41aa83abac41cbb2054af7384e2c",
+                    "vout": 0
+                  }
+                },
+                [
+                  208,
+                  119,
+                  13,
+                  79,
+                  121,
+                  243,
+                  33,
+                  29,
+                  83,
+                  179,
+                  40,
+                  63,
+                  139,
+                  247,
+                  2,
+                  83,
+                  89,
+                  44,
+                  117,
+                  175,
+                  179,
+                  229,
+                  233,
+                  13,
+                  176,
+                  156,
+                  117,
+                  71,
+                  2,
+                  218,
+                  51,
+                  151
+                ]
+              ]
+            ],
+            "outputs": [
+              {
+                "address": "11111111111111111111",
+                "content": {
+                  "GameDeposit": {
+                    "account": "0f2ffb3eef6d464fc93b8132a3d95da4b3fb7db57a4dfda30dca200e1137fb5b",
+                    "value": 500000
+                  }
+                }
+              },
+              {
+                "address": "3GFfPDAbKCDsdH6WJoYHE4qZk4wF",
+                "content": {
+                  "Value": 1499000
+                }
+              }
+            ],
+            "proof": {
+              "hashes": [],
+              "targets": []
+            }
+          }
+        },
+        "borsh": "0100000000aad8e5685e5048d6b49a167176a4c73e608b41aa83abac41cbb2054af7384e2c00000000d0770d4f79f3211d53b3283f8bf70253592c75afb3e5e90db09c754702da33970200000000000000000000000000000000000000000000000220a10700000000000f2ffb3eef6d464fc93b8132a3d95da4b3fb7db57a4dfda30dca200e1137fb5ba26f1ceca7b3ba1b3a300092edaa8b4be611e9ae0078df160000000000",
+        "inputs": [
+          {
+            "hash": "d0770d4f79f3211d53b3283f8bf70253592c75afb3e5e90db09c754702da3397",
+            "outpoint": {
+              "Regular": {
+                "txid": "aad8e5685e5048d6b49a167176a4c73e608b41aa83abac41cbb2054af7384e2c",
+                "vout": 0
+              }
+            }
+          }
+        ],
+        "json": {
+          "inputs": [
+            [
+              {
+                "Regular": {
+                  "txid": "aad8e5685e5048d6b49a167176a4c73e608b41aa83abac41cbb2054af7384e2c",
+                  "vout": 0
+                }
+              },
+              [
+                208,
+                119,
+                13,
+                79,
+                121,
+                243,
+                33,
+                29,
+                83,
+                179,
+                40,
+                63,
+                139,
+                247,
+                2,
+                83,
+                89,
+                44,
+                117,
+                175,
+                179,
+                229,
+                233,
+                13,
+                176,
+                156,
+                117,
+                71,
+                2,
+                218,
+                51,
+                151
+              ]
+            ]
+          ],
+          "outputs": [
+            {
+              "address": "11111111111111111111",
+              "content": {
+                "GameDeposit": {
+                  "account": "0f2ffb3eef6d464fc93b8132a3d95da4b3fb7db57a4dfda30dca200e1137fb5b",
+                  "value": 500000
+                }
+              }
+            },
+            {
+              "address": "3GFfPDAbKCDsdH6WJoYHE4qZk4wF",
+              "content": {
+                "Value": 1499000
+              }
+            }
+          ],
+          "proof": {
+            "hashes": [],
+            "targets": []
+          }
+        },
+        "txid": "020340932e8e7331244ce48f026f0d498cdd62a7c230a8443e212c800e319b4e"
+      },
+      {
+        "address": "3GFfPDAbKCDsdH6WJoYHE4qZk4wF",
+        "authorized": {
+          "authorizations": [
+            {
+              "signature": "3e5eabc081443818c909f61e24faaf42df6cfbecdc6ab0904a47416cef0c920d8098a721018d560af7ba6e50cc5abc3e015402d97255d664af822be03d7b8b0c",
+              "verifying_key": "80a95b72a58fc6fa60c2e06cafd9a0ce083489731841b55dfc20f2687ae08b21"
+            },
+            {
+              "signature": "b633a3877b8b2f71443af981003994b478dd714f25c848875e54a9e28cb6c00c553a55fd6325bffb6341240f05052853beb7955e6adcb270f41e88e900681e01",
+              "verifying_key": "80a95b72a58fc6fa60c2e06cafd9a0ce083489731841b55dfc20f2687ae08b21"
+            }
+          ],
+          "transaction": {
+            "inputs": [
+              [
+                {
+                  "Coinbase": {
+                    "txid": "365a2efcf6e4186939a2d06f2ba7941b5b959a531e9e8eab3593bffa40b46ef1",
+                    "vout": 0
+                  }
+                },
+                [
+                  45,
+                  193,
+                  140,
+                  52,
+                  44,
+                  116,
+                  130,
+                  161,
+                  217,
+                  78,
+                  232,
+                  255,
+                  11,
+                  102,
+                  106,
+                  42,
+                  136,
+                  132,
+                  92,
+                  150,
+                  13,
+                  133,
+                  169,
+                  187,
+                  191,
+                  198,
+                  102,
+                  160,
+                  172,
+                  19,
+                  14,
+                  242
+                ]
+              ],
+              [
+                {
+                  "Deposit": "c4b12cc43583ad5add2864f8e9e01f9062e05b6ddb116078d3ea7a55751fb0dd:0"
+                },
+                [
+                  57,
+                  11,
+                  42,
+                  93,
+                  121,
+                  76,
+                  100,
+                  109,
+                  69,
+                  95,
+                  154,
+                  105,
+                  28,
+                  15,
+                  251,
+                  20,
+                  159,
+                  181,
+                  80,
+                  33,
+                  156,
+                  7,
+                  212,
+                  179,
+                  163,
+                  224,
+                  126,
+                  203,
+                  6,
+                  88,
+                  193,
+                  37
+                ]
+              ]
+            ],
+            "outputs": [
+              {
+                "address": "4J1rRRiAKd1AaiRsHN49aK1BtDbs",
+                "content": {
+                  "Value": 1000000
+                }
+              },
+              {
+                "address": "11111111111111111111",
+                "content": {
+                  "GameDeposit": {
+                    "account": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+                    "value": 2000000
+                  }
+                }
+              },
+              {
+                "address": "3GFfPDAbKCDsdH6WJoYHE4qZk4wF",
+                "content": {
+                  "Value": 49999000
+                }
+              }
+            ],
+            "proof": {
+              "hashes": [],
+              "targets": []
+            }
+          }
+        },
+        "borsh": "0200000001365a2efcf6e4186939a2d06f2ba7941b5b959a531e9e8eab3593bffa40b46ef1000000002dc18c342c7482a1d94ee8ff0b666a2a88845c960d85a9bbbfc666a0ac130ef202ddb01f75557aead3786011db6d5be062901fe0e9f86428dd5aad8335c42cb1c400000000390b2a5d794c646d455f9a691c0ffb149fb550219c07d4b3a3e07ecb0658c12503000000ec64b2d7709226d76bfd2a300e0d13164d01332e0040420f000000000000000000000000000000000000000000000000000280841e000000000079be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798a26f1ceca7b3ba1b3a300092edaa8b4be611e9ae0098ecfa0200000000",
+        "inputs": [
+          {
+            "hash": "2dc18c342c7482a1d94ee8ff0b666a2a88845c960d85a9bbbfc666a0ac130ef2",
+            "outpoint": {
+              "Coinbase": {
+                "txid": "365a2efcf6e4186939a2d06f2ba7941b5b959a531e9e8eab3593bffa40b46ef1",
+                "vout": 0
+              }
+            }
+          },
+          {
+            "hash": "390b2a5d794c646d455f9a691c0ffb149fb550219c07d4b3a3e07ecb0658c125",
+            "outpoint": {
+              "Deposit": "c4b12cc43583ad5add2864f8e9e01f9062e05b6ddb116078d3ea7a55751fb0dd:0"
+            }
+          }
+        ],
+        "json": {
+          "inputs": [
+            [
+              {
+                "Coinbase": {
+                  "txid": "365a2efcf6e4186939a2d06f2ba7941b5b959a531e9e8eab3593bffa40b46ef1",
+                  "vout": 0
+                }
+              },
+              [
+                45,
+                193,
+                140,
+                52,
+                44,
+                116,
+                130,
+                161,
+                217,
+                78,
+                232,
+                255,
+                11,
+                102,
+                106,
+                42,
+                136,
+                132,
+                92,
+                150,
+                13,
+                133,
+                169,
+                187,
+                191,
+                198,
+                102,
+                160,
+                172,
+                19,
+                14,
+                242
+              ]
+            ],
+            [
+              {
+                "Deposit": "c4b12cc43583ad5add2864f8e9e01f9062e05b6ddb116078d3ea7a55751fb0dd:0"
+              },
+              [
+                57,
+                11,
+                42,
+                93,
+                121,
+                76,
+                100,
+                109,
+                69,
+                95,
+                154,
+                105,
+                28,
+                15,
+                251,
+                20,
+                159,
+                181,
+                80,
+                33,
+                156,
+                7,
+                212,
+                179,
+                163,
+                224,
+                126,
+                203,
+                6,
+                88,
+                193,
+                37
+              ]
+            ]
+          ],
+          "outputs": [
+            {
+              "address": "4J1rRRiAKd1AaiRsHN49aK1BtDbs",
+              "content": {
+                "Value": 1000000
+              }
+            },
+            {
+              "address": "11111111111111111111",
+              "content": {
+                "GameDeposit": {
+                  "account": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+                  "value": 2000000
+                }
+              }
+            },
+            {
+              "address": "3GFfPDAbKCDsdH6WJoYHE4qZk4wF",
+              "content": {
+                "Value": 49999000
+              }
+            }
+          ],
+          "proof": {
+            "hashes": [],
+            "targets": []
+          }
+        },
+        "txid": "2cfdc69bc27c80463e64cdc00c4e809d404eedb9190de2126f99772ca41c89f8"
+      },
+      {
+        "address": "3GFfPDAbKCDsdH6WJoYHE4qZk4wF",
+        "authorized": {
+          "authorizations": [
+            {
+              "signature": "482535b1e6ab1654e563daa9baf9ac2ff1bc679107a2929189ddddc784570b75ea55a389befb1e37e5a899f53322675b9905971fbe05aefa1c8c3b28d344f902",
+              "verifying_key": "80a95b72a58fc6fa60c2e06cafd9a0ce083489731841b55dfc20f2687ae08b21"
+            }
+          ],
+          "transaction": {
+            "inputs": [
+              [
+                {
+                  "Deposit": "c4b12cc43583ad5add2864f8e9e01f9062e05b6ddb116078d3ea7a55751fb0dd:0"
+                },
+                [
+                  57,
+                  11,
+                  42,
+                  93,
+                  121,
+                  76,
+                  100,
+                  109,
+                  69,
+                  95,
+                  154,
+                  105,
+                  28,
+                  15,
+                  251,
+                  20,
+                  159,
+                  181,
+                  80,
+                  33,
+                  156,
+                  7,
+                  212,
+                  179,
+                  163,
+                  224,
+                  126,
+                  203,
+                  6,
+                  88,
+                  193,
+                  37
+                ]
+              ]
+            ],
+            "outputs": [
+              {
+                "address": "11111111111111111111",
+                "content": {
+                  "GameDeposit": {
+                    "account": "0f2ffb3eef6d464fc93b8132a3d95da4b3fb7db57a4dfda30dca200e1137fb5b",
+                    "value": 4999000
+                  }
+                }
+              }
+            ],
+            "proof": {
+              "hashes": [],
+              "targets": []
+            }
+          }
+        },
+        "borsh": "0100000002ddb01f75557aead3786011db6d5be062901fe0e9f86428dd5aad8335c42cb1c400000000390b2a5d794c646d455f9a691c0ffb149fb550219c07d4b3a3e07ecb0658c1250100000000000000000000000000000000000000000000000258474c00000000000f2ffb3eef6d464fc93b8132a3d95da4b3fb7db57a4dfda30dca200e1137fb5b",
+        "inputs": [
+          {
+            "hash": "390b2a5d794c646d455f9a691c0ffb149fb550219c07d4b3a3e07ecb0658c125",
+            "outpoint": {
+              "Deposit": "c4b12cc43583ad5add2864f8e9e01f9062e05b6ddb116078d3ea7a55751fb0dd:0"
+            }
+          }
+        ],
+        "json": {
+          "inputs": [
+            [
+              {
+                "Deposit": "c4b12cc43583ad5add2864f8e9e01f9062e05b6ddb116078d3ea7a55751fb0dd:0"
+              },
+              [
+                57,
+                11,
+                42,
+                93,
+                121,
+                76,
+                100,
+                109,
+                69,
+                95,
+                154,
+                105,
+                28,
+                15,
+                251,
+                20,
+                159,
+                181,
+                80,
+                33,
+                156,
+                7,
+                212,
+                179,
+                163,
+                224,
+                126,
+                203,
+                6,
+                88,
+                193,
+                37
+              ]
+            ]
+          ],
+          "outputs": [
+            {
+              "address": "11111111111111111111",
+              "content": {
+                "GameDeposit": {
+                  "account": "0f2ffb3eef6d464fc93b8132a3d95da4b3fb7db57a4dfda30dca200e1137fb5b",
+                  "value": 4999000
+                }
+              }
+            }
+          ],
+          "proof": {
+            "hashes": [],
+            "targets": []
+          }
+        },
+        "txid": "8926022b2dea524ef115fc0047b9ae47298bccd5d10116aff83c278ce1443f3c"
+      }
+    ]
+  },
   "keys": [
     {
       "address": "3GFfPDAbKCDsdH6WJoYHE4qZk4wF",

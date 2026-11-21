@@ -24,4 +24,6 @@ cargo test -p ecx-sidepot --test coins
 
 `verify` fails, and writes nothing, if the node's code refuses any of them.
 
-The fixtures here were written on 2026-11-20 from the node's commit `73326c8`.
+The fixtures here were written on 2026-11-20 from the node's commit `73326c8`. On 2026-11-21 the node's commit `824e49c` (tag `sidepot-v0.2.0`, with game deposits: docs/adr/0023) wrote them again: every vector already there came out byte for byte the same, and `gameDeposits` was added (game deposit outputs, transactions that make them with the hash each input commits to, and those transactions signed and verified by the node's code). `verify` took the two moves into the game the wallet now signs, beside the eight earlier transactions, unchanged.
+
+The program expects the node's source at `../../../../sidepot-thunder`. To build it against a node source elsewhere without moving anything, copy this repository (its `core/` is enough) to `<dir>/ecx-wallet` and make `<dir>/sidepot-thunder` a symlink to the node source.

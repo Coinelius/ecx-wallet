@@ -122,11 +122,12 @@ export {
   type WatchData,
 } from "./sidechain-server";
 export { esploraConfig, serverUrl, sidechainServer } from "./server-api";
-export { isSidepotAddress, outpointKey, sidepotClient, sidepotServer, type SidepotAccount, type SidepotClient, type SidepotCoins, type SidepotState } from "./sidepot";
+export { isSidepotAddress, outpointKey, sidepotClient, sidepotServer, type SidepotAccount, type SidepotClient, type SidepotCoins, type SidepotGameMoves, type SidepotState } from "./sidepot";
 export {
   createSidepotCoins,
   isSpendAskedFor,
   SIDEPOT_COIN_FEE,
+  gameMoveRequester,
   withdrawalRequester,
   type SidepotCoinsApi,
   type SidepotCoinsDeps,

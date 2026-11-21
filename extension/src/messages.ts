@@ -106,7 +106,7 @@ export type BackgroundMessage =
   | { kind: "deposit.held"; unattended?: boolean }
   | { kind: "deposit.dismissRefused"; slot: number }
   // The wallet's ordinary coins on the Sidepot sidechain (docs/adr/0022): its address there, what its
-  // server reports of it, and a transfer or a withdrawal request from it. Wallet pages only.
+  // server reports of it, and a transfer, a withdrawal request or a move into the game account from it. Wallet pages only.
   | { kind: "coins.address"; slot: number }
   | { kind: "coins.reported"; slot: number; unattended?: boolean }
   // Stops showing a withdrawal request the server no longer lists (the wallet's own record of it).
@@ -114,7 +114,7 @@ export type BackgroundMessage =
   | {
       kind: "coins.spend";
       slot: number;
-      pay: { kind: "transfer"; to: string; amount: string } | { kind: "withdrawal"; mainAddress: string; amount: string; mainFee: string };
+      pay: { kind: "transfer"; to: string; amount: string } | { kind: "withdrawal"; mainAddress: string; amount: string; mainFee: string } | { kind: "game"; amount: string };
       host?: string;
     }
   // Vault: accepted only from the wallet's own pages.

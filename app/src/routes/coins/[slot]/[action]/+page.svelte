@@ -1,10 +1,11 @@
 <script lang="ts">
   // Spending the wallet's ordinary coins on the Sidepot sidechain (docs/adr/0022): `send` pays another
-  // Sidepot address, `withdraw` asks for a withdrawal to a main-chain address. Each is approved in
-  // place, as the wallet's own Send and Deposit are.
+  // Sidepot address, `withdraw` asks for a withdrawal to a main-chain address, `game` moves coins into
+  // the wallet's own game account on the same chain (docs/adr/0023). Each is approved in place, as
+  // the wallet's own Send and Deposit are.
   import { page } from "$app/state";
-  import { parseAmount } from "@ecx/wallet";
-  import { coinsReported, hostApprovals, listChains, sendCoins, withdrawCoins, type ChainInfo, type SendResult, type SidepotCoinsReport } from "$lib/background";
+  import { formatAmount, parseAmount } from "@ecx/wallet";
+  import { coinsReported, hostApprovals, listChains, moveCoinsToGame, sendCoins, withdrawCoins, type ChainInfo, type SendResult, type SidepotCoinsReport } from "$lib/background";
   import Approval from "$lib/Approval.svelte";
   import Icon from "$lib/Icon.svelte";
   import TopBar from "$lib/TopBar.svelte";
@@ -12,6 +13,8 @@
 
   const slot = Number(page.params.slot);
   const withdrawing = page.params.action === "withdraw";
+  /** Into the wallet's own game account: no destination to type, the wallet's own Starter names it. */
+  const moving = page.params.action === "game";
 
   let chains = $state<ChainInfo[]>([]);
   listChains().then((c) => (chains = c), () => {});
@@ -63,6 +66,24 @@
   });
   const overspent = $derived(total !== undefined && report !== undefined && total > BigInt(report.balance));
 
+  /** Whether the chain takes a move into the game now, and if not, why, in one line (undefined while unread). */
+  const gameMoves = $derived(report?.gameMoves);
+  const movesClosed = $derived.by(() => {
+    if (!moving || report === undefined) return undefined;
+    if (gameMoves === undefined) return `Couldn't read from ${report.server} whether ${name} takes coins into the game yet.`;
+    if (gameMoves.open) return undefined;
+    if (gameMoves.forkHeight === null) return `Moving coins into the game isn't available on this network.`;
+    return `Moving coins into the game works from eCash block ${gameMoves.forkHeight.toLocaleString("en-US")}. eCash is at block ${gameMoves.tipHeight.toLocaleString("en-US")}.`;
+  });
+
+  /** Everything the coins hold, less Sidepot's own fee, in the unit amounts are typed in. */
+  function allOfIt() {
+    if (report === undefined) return;
+    const left = BigInt(report.balance) - BigInt(report.fee);
+    if (left <= 0n) return;
+    amount = formatAmount(left.toString(), ecx, unit.value).split(" ")[0];
+  }
+
   async function submit(e: SubmitEvent) {
     e.preventDefault();
     error = "";
@@ -86,7 +107,9 @@
     try {
       done = withdrawing
         ? await withdrawCoins(slot, { mainAddress: to.trim(), amount: pay.amount, mainFee: pay.mainFee }, approvals.host)
-        : await sendCoins(slot, { to: to.trim(), amount: pay.amount }, approvals.host);
+        : moving
+          ? await moveCoinsToGame(slot, { amount: pay.amount }, approvals.host)
+          : await sendCoins(slot, { to: to.trim(), amount: pay.amount }, approvals.host);
       // What it spent is held now: the balance above says so.
       void readCoins();
     } catch (err) {
@@ -110,8 +133,8 @@
   <!-- This screen's own request, approved in place: a window would close the toolbar popup. -->
   {#key approvalId}<Approval id={approvalId} hosted ondone={() => (approvalId = null)} />{/key}
 {:else}
-<main class="screen" data-screen-ready data-coins-screen={withdrawing ? "withdraw" : "send"}>
-  <TopBar title={withdrawing ? `Withdraw from ${name}` : `Send ${name} coins`} back="#/chain/{slot}" />
+<main class="screen" data-screen-ready data-coins-screen={withdrawing ? "withdraw" : moving ? "game" : "send"}>
+  <TopBar title={withdrawing ? `Withdraw from ${name}` : moving ? "Move to your game account" : `Send ${name} coins`} back="#/chain/{slot}" />
 
   <div class="card">
     <span class="muted small">Your coins on {name}</span>
@@ -130,7 +153,7 @@
 
   {#if done}
     <div class="success sent" role="status" data-coins-done>
-      <strong>{withdrawing ? "Withdrawal requested" : "Sent"}</strong>
+      <strong>{withdrawing ? "Withdrawal requested" : moving ? "Moving into the game" : "Sent"}</strong>
       {#if done.txid}
         <span class="txid">
           Transaction <code data-coins-txid={done.txid}>{shortTxid(done.txid)}</code>
@@ -142,19 +165,33 @@
       <span>
         {withdrawing
           ? `${name}'s node took it. It shows under Withdrawals waiting on ${name}'s screen.`
-          : `${name}'s node took it. Your balance shows it once it is in a block.`}
+          : moving
+            ? `${name}'s node took it. Your game balance shows it once it is in a ${name} block.`
+            : `${name}'s node took it. Your balance shows it once it is in a block.`}
       </span>
       <a class="link" href="#/chain/{slot}" data-coins-back>Back to {name}</a>
     </div>
   {:else}
     <form class="stack" onsubmit={submit}>
       <div class="card">
+        {#if moving}
+          <p class="small" data-coins-game-note>
+            This moves coins from your {name} address into your game account on {name}, where they can buy keys. It arrives once the
+            transaction is in a {name} block. To get it back out, cash out from the game: it arrives at your {name} address as coins again.
+          </p>
+        {:else}
+          <label>
+            {withdrawing ? "Main-chain (eCash) address" : `${name} address`}
+            <input class="mono" bind:value={to} autocomplete="off" spellcheck="false" data-coins-destination />
+          </label>
+        {/if}
         <label>
-          {withdrawing ? "Main-chain (eCash) address" : `${name} address`}
-          <input class="mono" bind:value={to} autocomplete="off" spellcheck="false" data-coins-destination />
-        </label>
-        <label>
-          Amount ({unitName})
+          <span class="amount-label">
+            Amount ({unitName})
+            {#if moving && report && BigInt(report.balance) > BigInt(report.fee)}
+              <button type="button" class="link" onclick={allOfIt} data-coins-all>All of it</button>
+            {/if}
+          </span>
           <input inputmode="decimal" bind:value={amount} autocomplete="off" data-coins-amount />
         </label>
         {#if withdrawing}
@@ -202,6 +239,10 @@
             <span>I understand, and I want to ask for this withdrawal.</span>
           </label>
         </div>
+      {:else if moving}
+        {#if movesClosed}
+          <p class="notice" data-coins-game-closed><Icon name="warning" /><span>{movesClosed}</span></p>
+        {/if}
       {:else}
         <p class="notice" data-coins-send-note>
           <Icon name="warning" />
@@ -214,8 +255,13 @@
       <p class="reported">
         This wallet builds the transaction from your own coins. You review exactly what it built before anything is signed.
       </p>
-      <button class="primary block" type="submit" disabled={busy || to.trim() === "" || amount.trim() === "" || (withdrawing && !understood)} data-coins-submit>
-        {withdrawing ? "Review withdrawal" : "Review and send"}
+      <button
+        class="primary block"
+        type="submit"
+        disabled={busy || (!moving && to.trim() === "") || amount.trim() === "" || (withdrawing && !understood) || (moving && (report === undefined || movesClosed !== undefined))}
+        data-coins-submit
+      >
+        {withdrawing ? "Review withdrawal" : moving ? "Review the move" : "Review and send"}
       </button>
     </form>
     {#if busy}
@@ -259,6 +305,12 @@
   }
   .amount {
     font-size: 1.6rem;
+  }
+  .amount-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
   }
   .sent {
     display: flex;
